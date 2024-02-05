@@ -1,7 +1,7 @@
 import logging
 import os
 from operator import itemgetter
-from application.backend.chatbot import Chatbot
+from application.backend.chatbot.chatbot import Chatbot
 from dotenv import find_dotenv, load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

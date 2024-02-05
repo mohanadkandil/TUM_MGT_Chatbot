@@ -1,10 +1,6 @@
 import json
 import openai
 import requests
-from langchain_openai import ChatOpenAI
-
-
-logger = logger.get_logger(__name__)
 
 
 # Define Chatbot class (Decision-Making Module)
@@ -21,3 +17,19 @@ class Chatbot:
         """
 
     # TODO: Add methods to implement and define behavior of chatbot
+
+
+# Main function to test chatbot locally in terminal
+def main():
+    bot = Chatbot()
+
+    while True:
+        usr_input = input("User: ")
+        if usr_input == "quit":
+            break
+        resp = bot.chat(usr_input)
+        print(f"Bot: {resp}")
+
+
+if __name__ == "__main__":
+    main()
