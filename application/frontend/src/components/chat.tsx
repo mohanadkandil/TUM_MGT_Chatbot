@@ -5,6 +5,8 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { Message } from "ai";
+import { ChatList } from "./chat-list";
+import { EmptyScreen } from "./empty-screen";
 
 export interface ChatProps extends React.ComponentProps<"div"> {
   initialMessages?: Message[];
@@ -44,6 +46,15 @@ export function Chat({ id, initialMessages, className }: ChatProps) {
     });
   return (
     <>
+      <div className={cn("pb-[200px] pt-4 md:pt-10", className)}>
+        {messages.length ? (
+          <>
+            <ChatList messages={messages} />
+          </>
+        ) : (
+          <EmptyScreen />
+        )}
+      </div>
       <ChatPanel
         id={id}
         isLoading={isLoading}
