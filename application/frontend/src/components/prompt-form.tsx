@@ -6,7 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { IconArrowElbow, IconPlus } from "./icons";
+import { IconArrowElbow, IconPlus, IconSend } from "./icons";
 
 export interface PormptProps
   extends Pick<UseChatHelpers, "input" | "setInput"> {
@@ -75,7 +75,7 @@ export function PromptForm({
                 size="icon"
                 disabled={isLoading || input === ""}
               >
-                <IconArrowElbow />
+                <IconSend />
                 <span className="sr-only">Send message</span>
               </Button>
             </TooltipTrigger>
