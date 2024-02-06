@@ -35,7 +35,7 @@ export function ChatMessage({ message, ...props }: ChatMessageProps) {
             p({ children }) {
               return <p className="mb-2 last:mb-0">{children}</p>;
             },
-            code({ node, inline, className, children, ...props }) {
+            code({ node, inlist, className, children, ...props }) {
               if (children.length) {
                 if (children[0] == "▍") {
                   return (
@@ -47,7 +47,7 @@ export function ChatMessage({ message, ...props }: ChatMessageProps) {
 
               const match = /language-(\w+)/.exec(className || "");
 
-              if (inline) {
+              if (inlist) {
                 return (
                   <code className={className} {...props}>
                     {children}
