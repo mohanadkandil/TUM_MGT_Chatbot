@@ -5,3 +5,4 @@
 myapp
 .idea
 /application/.env.example
+.env
