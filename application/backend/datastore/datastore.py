@@ -35,16 +35,19 @@ class ChatbotVectorDatabase:
         """
         url = os.getenv("WEAVIATE_CLUSTER_URL")
         weaviate_api_key = os.getenv("WEAVIATE_API_KEY")
-        openai_api_key = os.getenv("OPENAI_API_KEY")
+        openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        azure_deployment_id = os.getenv("AZURE_DEPLOYMENT_ID")
         assert url, "WEAVIATE_URL environment variable must be set"
         assert weaviate_api_key, "WEAVIATE_API_KEY environment variable must be set"
         assert openai_api_key, "OPENAI_API_KEY environment variable must be set"
+        assert azure_deployment_id, "AZURE_DEPLOYMENT_ID environment variable must be set"
 
         self.client = weaviate.connect_to_wcs(
             cluster_url=url,
             auth_credentials=weaviate.auth.AuthApiKey(weaviate_api_key),
             headers={
-                "X-OpenAI-Api-Key": openai_api_key
+                "X-Azure-Api-Key": openai_api_key,
+                "deploymentId": azure_deployment_id
             }
         )
         self._init_schema()
@@ -62,7 +65,7 @@ class ChatbotVectorDatabase:
         self.client.collections.create(
             name=COLLECTION_NAME,
             # By specifying a vectorizer, weaviate will automatically vectorize the text content of the chunks
-            vectorizer_config=wvc.config.Configure.Vectorizer.text2vec_openai(),
+            vectorizer_config=wvc.config.Configure.Vectorizer.text2vec_openai(model="text-embedding-3-large"),
             # HNSW is preferred over FLAT for large amounts of data, which is the case here
             vector_index_config=wvc.config.Configure.VectorIndex.hnsw(
                 distance_metric=wvc.config.VectorDistances.COSINE  # select preferred distance metric
