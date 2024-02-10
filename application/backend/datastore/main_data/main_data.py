@@ -1,10 +1,9 @@
-from functools import reduce
 from typing import Iterable
 
 import weaviate.classes as wvc
 
 import schema
-from schema import Document, Chunk
+from schema import Document, Chunk, ChunkFilter
 
 
 class MainData:
@@ -64,26 +63,22 @@ class MainData:
             self,
             query: str,
             k: int = 3,
-            filters: dict[str, str] = None
+            filter: ChunkFilter = None
     ) -> list[Chunk]:
         """
-        Retrieve the most similar documents to the given query with optional filters.
+        Retrieve the most similar documents to the given query with optional filtering.
         This performs a hybrid search in Weaviate.
         TODO: Experiment with different search strategies and parameters
-        TODO: Filtering by degree program should always also allow "" (no degree program) for general documents
         :param query: The query to search for
         :param k: The number of documents to retrieve
-        :param filters: Additional filters to apply to the search in the form of a dictionary.
-        The keys may only be properties from `properties.ALL` and the values are the values to filter by.
+        :param filter: Additional filters to apply to the search in the form of a dictionary.
+        The keys may only be properties from the schema and the values are the values to filter by.
         :return: The most similar documents to the given query which satisfy the filters
         """
-        if filters is not None:
-            filters = [wvc.query.Filter.by_property(key).equal(val) for key, val in filters.items()]
-            filters = reduce(lambda a, b: a & b, filters)
         result = self.collection.query.hybrid(
             query=query,
             limit=k,
-            filters=filters,
+            filters=filter.into_weaviate() if filter else None,
             alpha=0.5,  # alpha=1.0 is pure vector search, alpha=0.0 is pure text search. 0.5 is equal weight
             return_metadata=wvc.query.MetadataQuery(score=True, explain_score=True),  # Return the score and explain it
         )
