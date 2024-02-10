@@ -4,8 +4,7 @@ from typing import Any, Type
 
 import langchain_core.documents
 import weaviate.classes as wvc
-from langchain_community.document_loaders import UnstructuredFileLoader
-from unstructured.cleaners.core import clean_extra_whitespace
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from weaviate import WeaviateClient
 from weaviate.collections import Collection
 from weaviate.collections.classes.filters import _FilterValue
@@ -51,6 +50,17 @@ class Chunk:
 
     def __setitem__(self, key, value):
         setattr(self, key, value)
+
+    def to_dict(self):
+        return {
+            Chunk.TEXT: self.text,
+            Chunk.FILEPATH: self.filepath,
+            Chunk.LINKS: self.links,
+            Chunk.LANGUAGE: self.language,
+            Chunk.DEGREE_PROGRAMS: list(self.degree_programs),
+            Chunk.TOPICS: list(self.topics),
+            Chunk.HASH: self.hash,
+        }
 
     @property
     def hash(self):
@@ -130,15 +140,21 @@ class Document(Chunk):
         This method should be called on a document before adding it to Weaviate.
         :return: The chunks with all the properties of the original document (and some chunk-specific overrides)
         """
-        chunks = UnstructuredFileLoader(
-            self.text,
-            mode="elements",
-            post_processors=[clean_extra_whitespace]
-        ).load()
+        chunks = RecursiveCharacterTextSplitter(
+            separators=["\n", "\r\n"],
+            chunk_size=100,
+            chunk_overlap=10,
+        ).split_text(self.text)
         # Convert from langchain Documents to Chunks (slight misnomer, but it's the same thing)
-        chunks = [Chunk.from_langchain(chunk) for chunk in chunks]
-        # Use the properties of the original document but override with the chunk-specific properties
-        chunks = [Chunk._merge_properties(self, chunk) for chunk in chunks]
+        chunks = [Chunk(
+            text=chunk_text,
+            filepath=self.filepath,
+            links=self.links,
+            language=self.language,
+            degree_programs=self.degree_programs,
+            topics=self.topics,
+            hash=self.hash,
+        ) for chunk_text in chunks]
         return chunks
 
 

@@ -2,8 +2,8 @@ from typing import Iterable
 
 import weaviate.classes as wvc
 
-import schema
-from schema import Document, Chunk, ChunkFilter
+import main_schema
+from main_schema import Document, Chunk, ChunkFilter
 
 
 class MainData:
@@ -16,7 +16,7 @@ class MainData:
 
     def __init__(self, db):
         self.db = db
-        self.collection = schema.init_schema(db.client)
+        self.collection = main_schema.init_schema(db.client)
 
     def _fetch_distinct_hashes(self) -> set[str]:
         """
@@ -24,7 +24,8 @@ class MainData:
         :return: The distinct hashes of the documents in Weaviate
         """
         hashes = set()
-        for obj in self.collection.query.fetch_objects(return_properties=[Chunk.HASH]):
+        result = self.collection.query.fetch_objects(return_properties=[Chunk.HASH])
+        for obj in result.objects:
             hashes.add(obj.properties[Chunk.HASH])
         return hashes
 
@@ -51,13 +52,15 @@ class MainData:
             new_document_chunks.extend(document.chunk())
 
         # Remove documents that are no longer in OneDrive
-        self.collection.data.delete_many(
-            where=wvc.query.Filter.by_property(Chunk.HASH).contains_any(val=list(db_hashes))
-        )
+        if db_hashes:
+            self.collection.data.delete_many(
+                where=wvc.query.Filter.by_property(Chunk.HASH).contains_any(val=list(db_hashes))
+            )
         # Add new OneDrive documents to Weaviate
-        with self.collection.batch.dynamic() as batch:
-            for document_chunk in new_document_chunks:
-                batch.add_object(properties=document_chunk)
+        if new_document_chunks:
+            with self.collection.batch.dynamic() as batch:
+                for document_chunk in new_document_chunks:
+                    batch.add_object(properties=document_chunk.to_dict())
 
     def search(
             self,
