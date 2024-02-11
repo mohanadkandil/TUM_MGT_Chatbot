@@ -2,8 +2,8 @@ from typing import Iterable
 
 import weaviate.classes as wvc
 
-import main_schema
-from main_schema import Document, Chunk, ChunkFilter
+from . import main_schema
+from .main_schema import Document, Chunk, ChunkFilter
 
 
 class MainData:
@@ -38,9 +38,12 @@ class MainData:
         This is done by comparing the hashes of the documents.
         This method should be called periodically to ensure that the database is up-to-date.
         """
-        db_hashes = self._fetch_distinct_hashes()  # Fetch the current hashes from Weaviate
+        db_hashes = (
+            self._fetch_distinct_hashes()
+        )  # Fetch the current hashes from Weaviate
         new_document_chunks = []
         for document in documents:
+            print(document)
             if document.hash in db_hashes:
                 # This document has not changed since the last sync
                 # We should not re-embed it, nor remove it from the database
@@ -54,7 +57,9 @@ class MainData:
         # Remove documents that are no longer in OneDrive
         if db_hashes:
             self.collection.data.delete_many(
-                where=wvc.query.Filter.by_property(Chunk.HASH).contains_any(val=list(db_hashes))
+                where=wvc.query.Filter.by_property(Chunk.HASH).contains_any(
+                    val=list(db_hashes)
+                )
             )
         # Add new OneDrive documents to Weaviate
         if new_document_chunks:
@@ -62,12 +67,7 @@ class MainData:
                 for document_chunk in new_document_chunks:
                     batch.add_object(properties=document_chunk.to_dict())
 
-    def search(
-            self,
-            query: str,
-            k: int = 3,
-            filter: ChunkFilter = None
-    ) -> list[Chunk]:
+    def search(self, query: str, k: int = 3, filter: ChunkFilter = None) -> list[Chunk]:
         """
         Retrieve the most similar documents to the given query with optional filtering.
         This performs a hybrid search in Weaviate.
@@ -83,8 +83,11 @@ class MainData:
             limit=k,
             filters=filter.into_weaviate() if filter else None,
             alpha=0.5,  # alpha=1.0 is pure vector search, alpha=0.0 is pure text search. 0.5 is equal weight
-            return_metadata=wvc.query.MetadataQuery(score=True, explain_score=True),  # Return the score and explain it
+            return_metadata=wvc.query.MetadataQuery(
+                score=True, explain_score=True
+            ),  # Return the score and explain it
         )
         # Convert from Weaviate objects to Chunks
+
         relevant_chunks = [Chunk.from_weaviate(obj) for obj in result.objects]
         return relevant_chunks

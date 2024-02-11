@@ -17,6 +17,7 @@ class Chunk:
     Represents a chunk of a document as stored in Weaviate.
     This is the entity class for the main data Weaviate collection.
     """
+
     # Property names
     TEXT = "text"
     FILEPATH = "filepath"
@@ -26,16 +27,17 @@ class Chunk:
     TOPICS = "topics"
     HASH = "hash"
 
-    def __init__(self,
-                 text: str,
-                 filepath: str,  # FIXME: Unused?
-                 links: list[str],  # FIXME: Unused?
-                 language: str,
-                 degree_programs: set[str],
-                 topics: set[str],
-                 hash: str = None,
-                 **kwargs  # Could come from Weaviate retrieval
-                 ):
+    def __init__(
+        self,
+        text: str,
+        filepath: str,  # FIXME: Unused?
+        links: list[str],  # FIXME: Unused?
+        language: str,
+        degree_programs: set[str],
+        topics: set[str],
+        hash: str = None,
+        **kwargs  # Could come from Weaviate retrieval
+    ):
         self.text = text
         self.filepath = filepath
         self.links = links
@@ -67,7 +69,9 @@ class Chunk:
         return self._hash
 
     @classmethod
-    def _merge_properties(cls: Type["Document"], first: "Document", priority: "Document") -> "Document":
+    def _merge_properties(
+        cls: Type["Document"], first: "Document", priority: "Document"
+    ) -> "Document":
         """
         Merge two Documents, with the properties of the second Document overriding the first.
         :param first: The document to merge into
@@ -77,7 +81,9 @@ class Chunk:
         return cls(**{**vars(first), **vars(priority)})
 
     @classmethod
-    def from_langchain(cls: Type["Document"], document: langchain_core.documents.Document) -> "Document":
+    def from_langchain(
+        cls: Type["Document"], document: langchain_core.documents.Document
+    ) -> "Document":
         """
         Convert a langchain Document to a schema Document.
         This assumes that the text content of the document is in the "page_content" attribute,
@@ -104,7 +110,12 @@ class Chunk:
         :param obj: The Weaviate object
         :return: The Chunk
         """
-        return Chunk(**{**obj.properties, **obj.metadata})
+
+        metadata_dict = {
+            "score": obj.metadata.score,
+            "explain_score": obj.metadata.explain_score,
+        }
+        return Chunk(**{**obj.properties, **metadata_dict})
 
 
 class Document(Chunk):
@@ -146,15 +157,18 @@ class Document(Chunk):
             chunk_overlap=10,
         ).split_text(self.text)
         # Convert from langchain Documents to Chunks (slight misnomer, but it's the same thing)
-        chunks = [Chunk(
-            text=chunk_text,
-            filepath=self.filepath,
-            links=self.links,
-            language=self.language,
-            degree_programs=self.degree_programs,
-            topics=self.topics,
-            hash=self.hash,
-        ) for chunk_text in chunks]
+        chunks = [
+            Chunk(
+                text=chunk_text,
+                filepath=self.filepath,
+                links=self.links,
+                language=self.language,
+                degree_programs=self.degree_programs,
+                topics=self.topics,
+                hash=self.hash,
+            )
+            for chunk_text in chunks
+        ]
         return chunks
 
 
@@ -164,11 +178,12 @@ class ChunkFilter:
     This is a simple class that can be used to filter chunks by their properties during retrieval.
     """
 
-    def __init__(self,
-                 language: str = None,
-                 degree_programs: set[str] = None,
-                 topics: set[str] = None,
-                 ):
+    def __init__(
+        self,
+        language: str = None,
+        degree_programs: set[str] = None,
+        topics: set[str] = None,
+    ):
         """
         Initialize the filter. Leave a property as None to not filter by that property.
         :param language: The language of the chunks to retrieve
@@ -189,17 +204,23 @@ class ChunkFilter:
         """
         filters = []
         if Chunk.LANGUAGE in self.properties:
-            filters.append(wvc.query.Filter
-                           .by_property(Chunk.LANGUAGE)
-                           .equal(self.properties[Chunk.LANGUAGE]))
+            filters.append(
+                wvc.query.Filter.by_property(Chunk.LANGUAGE).equal(
+                    self.properties[Chunk.LANGUAGE]
+                )
+            )
         if Chunk.DEGREE_PROGRAMS in self.properties:
-            filters.append(wvc.query.Filter
-                           .by_property(Chunk.DEGREE_PROGRAMS)
-                           .contains_any(self.properties[Chunk.DEGREE_PROGRAMS]))
+            filters.append(
+                wvc.query.Filter.by_property(Chunk.DEGREE_PROGRAMS).contains_any(
+                    self.properties[Chunk.DEGREE_PROGRAMS]
+                )
+            )
         if Chunk.TOPICS in self.properties:
-            filters.append(wvc.query.Filter
-                           .by_property(Chunk.TOPICS)
-                           .contains_any(self.properties[Chunk.TOPICS]))
+            filters.append(
+                wvc.query.Filter.by_property(Chunk.TOPICS).contains_any(
+                    self.properties[Chunk.TOPICS]
+                )
+            )
         filters = reduce(lambda a, b: a & b, filters) if filters else None
         return filters
 
@@ -260,5 +281,5 @@ def init_schema(client: WeaviateClient) -> Collection:
                 data_type=wvc.config.DataType.TEXT,
                 skip_vectorization=True,
             ),
-        ]
+        ],
     )

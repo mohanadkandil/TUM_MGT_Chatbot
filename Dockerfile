@@ -1,18 +1,16 @@
 # Use an official Python runtime as a parent image
-FROM python:3.11-slim-buster
+FROM python:3.10-slim-buster
 
 # Set the working directory in the container
 WORKDIR /application
 
-ADD ./application /application
-
+# Copy requirements.txt and install the Python packages
 COPY requirements.txt /application/requirements.txt
-
-# Install any needed packages specified in requirements.txt
 RUN pip install --upgrade -r /application/requirements.txt
 
+# Copy the rest of the application
 COPY . /application/
 
-ENV APP_PATH=/application/
+ENV APP_PATH=/application
 
-CMD ["uvicorn", "application.backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "application.main:app", "--host", "0.0.0.0", "--port", "8000"]
