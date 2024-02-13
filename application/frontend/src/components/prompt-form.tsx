@@ -36,7 +36,7 @@ export function PromptForm({
         await onSubmit(input);
       }}
     >
-      <div className="relative flex flex-col w-full px-8 overflow-hidden max-h-60 grow bg-background sm:rounded-sm sm:border sm:px-12">
+      <div className="relative flex flex-col w-full px-8 overflow-hidden max-h-60 grow bg-background sm:border sm:rounded-2xl sm:px-12">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -63,7 +63,7 @@ export function PromptForm({
           rows={1}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Send a message."
+          placeholder="Message TUM.Chat"
           spellCheck={false}
           className="min-h-[60px] w-full resize-none bg-transparent px-4 py-[1.3rem] focus-within:outline-none sm:text-sm"
         />
@@ -72,6 +72,7 @@ export function PromptForm({
             <TooltipTrigger asChild>
               <Button
                 type="submit"
+                variant="ghost"
                 size="icon"
                 disabled={isLoading || input === ""}
               >
