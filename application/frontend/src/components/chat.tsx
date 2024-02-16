@@ -7,6 +7,7 @@ import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { Message } from "ai";
 import { ChatList } from "./chat-list";
 import { EmptyScreen } from "./empty-screen";
+import { QuestionsRecommendation } from "./questions-recommendation";
 
 export interface ChatProps extends React.ComponentProps<"div"> {
   initialMessages?: Message[];
@@ -52,7 +53,18 @@ export function Chat({ id, initialMessages, className }: ChatProps) {
             <ChatList messages={messages} />
           </>
         ) : (
-          <EmptyScreen />
+          <>
+            <div className="mx-auto max-w-5xl py-12">
+              <h1 className="text-[#3070B3] font-extrabold text-5xl">
+                Hello Penny
+              </h1>
+              <p className="pt-4 text-slate-600 text-xl">
+                Ask TUM-specific questions here. Get quick answers on courses,
+                admin, and more.
+              </p>
+            </div>
+            <QuestionsRecommendation />
+          </>
         )}
       </div>
       <ChatPanel

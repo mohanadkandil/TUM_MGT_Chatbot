@@ -24,9 +24,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex flex-col flex-1 bg-muted/50">{children}</main>
+          <div className="flex flex-col min-h-screen bg-[#1A3048]">
+            <main className="flex flex-col flex-1 bg-white m-2.5 rounded-lg">
+              {children}
+            </main>
           </div>
         </Providers>
       </body>
