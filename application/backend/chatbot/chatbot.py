@@ -1,14 +1,56 @@
 import json
-import openai
 import requests
+import logging
+import os
+from operator import itemgetter
+import weaviate
+from langchain_openai import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings
+from langchain.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableParallel, RunnablePassthrough
+from langchain.schema import StrOutputParser, Document, format_document
+from dotenv import find_dotenv, load_dotenv
+from application.backend.datastore.db import ChatbotVectorDatabase
+from langchain_community.vectorstores import Weaviate
+from langchain_openai import OpenAIEmbeddings
+from pydantic import BaseModel, Field
+from langchain.schema import Document
+
+load_dotenv(find_dotenv())
+
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
+os.environ["LANGCHAIN_API_KEY"] = "ls__57d4de111e7247f5b3559f13e8650ea8"
+os.environ["LANGCHAIN_PROJECT"] = "MGTChatbot"
+
+
+class Message(BaseModel):
+    role: str
+    content: str
+
+
+class Conversation(BaseModel):
+    conversation: list[Message]
 
 
 # Define Chatbot class (Decision-Making Module)
 class Chatbot:
-    def __init__(self):
-        self.conversation_history = []
 
-    def chat(self, question: str, chat_history: list[dict]) -> str:
+    def __init__(self):
+
+        self.conversation_history = Conversation(conversation=[])
+
+        self.chatvec = ChatbotVectorDatabase()
+
+    def _format_chat_history(self, conversation: list) -> str:
+
+        formatted_history = ""
+        for message in conversation:
+            formatted_history += f"{message.role}: {message.content}\n"
+        return formatted_history.rstrip()
+
+    def chat(self, question: str, conversation: Conversation) -> str:
         """
         Chat with the chatbot
         :param question: The question to ask the chatbot
@@ -16,7 +58,70 @@ class Chatbot:
         :return: The chatbot's answer
         """
 
-    # TODO: Add methods to implement and define behavior of chatbot
+        llm = ChatOpenAI(
+            model_name="gpt-3.5-turbo",
+            temperature=0,
+            api_key=os.getenv("OPENAI_API_KEY"),
+        )
+
+        condense_question_template = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.
+        Chat History:
+        {chat_history}
+        Follow Up Input: {question}
+        Standalone question:"""
+        CONDENSE_QUESTION_PROMPT = PromptTemplate.from_template(
+            condense_question_template
+        )
+
+        answer_template = """Answer the question based only on the following context:
+        {context}
+
+        If you don´t find the answer in the context, tell the user that you are happy to help with different questions about TUM.
+
+        Question: {question}
+        """
+        ANSWER_PROMPT = ChatPromptTemplate.from_template(answer_template)
+
+        DEFAULT_DOCUMENT_PROMPT = PromptTemplate.from_template(
+            template="{page_content}"
+        )
+
+        def _combine_documents(
+            docs, document_prompt=DEFAULT_DOCUMENT_PROMPT, document_separator="\n\n"
+        ):
+            doc_strings = [format_document(doc, document_prompt) for doc in docs]
+            return document_separator.join(doc_strings)
+
+        _inputs = RunnableParallel(
+            standalone_question=RunnablePassthrough.assign(
+                chat_history=lambda x: self._format_chat_history(x["chat_history"])
+            )
+            | CONDENSE_QUESTION_PROMPT
+            | llm
+            | StrOutputParser(),
+        )
+
+        _context = {
+            "context": lambda x: " ".join(
+                [
+                    res.text
+                    for res in self.chatvec.main.search(
+                        itemgetter("standalone_question")(x)
+                    )
+                ]
+            ),
+            "question": itemgetter("standalone_question"),
+        }
+        print(_context)
+        conversational_qa_chain = (
+            _inputs | _context | ANSWER_PROMPT | llm | StrOutputParser()
+        )
+
+        answer = conversational_qa_chain.invoke(
+            {"question": question, "chat_history": conversation.conversation}
+        )
+
+        return {"answer": answer}
 
 
 # Main function to test chatbot locally in terminal
@@ -27,7 +132,7 @@ def main():
         usr_input = input("User: ")
         if usr_input == "quit":
             break
-        resp = bot.chat(usr_input)
+        resp = bot.chat(usr_input, bot.conversation_history)
         print(f"Bot: {resp}")
 
 
