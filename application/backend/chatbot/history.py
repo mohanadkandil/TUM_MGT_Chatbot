@@ -4,6 +4,10 @@ from typing import List
 import psycopg
 from psycopg.rows import dict_row
 from psycopg import sql
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import (
@@ -12,7 +16,15 @@ from langchain_core.messages import (
     messages_from_dict,
 )
 
-DEFAULT_CONNECTION_STRING = "postgresql://postgres:mypassword@localhost/chat_history"
+host = "som-postgres.postgres.database.azure.com"
+dbname = "postgres"
+user = os.environ.get("POSTGRES_USER")
+password = os.environ.get("POSTGRES_PASSWORD")
+#sslmode = "require"
+
+DEFAULT_CONNECTION_STRING = "postgresql://postgres:admin@localhost/testdb"
+
+conn_string = "host={0} user={1} dbname={2} password={3}".format(host, user, dbname, password) #sslmode can be added
 
 
 class PostgresChatMessageHistory(BaseChatMessageHistory):
@@ -21,7 +33,7 @@ class PostgresChatMessageHistory(BaseChatMessageHistory):
     def __init__(
         self,
         session_id: str,
-        connection_string: str = DEFAULT_CONNECTION_STRING,
+        connection_string: str = conn_string,
         table_name: str = "message_store",
     ):
 
