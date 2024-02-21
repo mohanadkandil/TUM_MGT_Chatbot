@@ -1,9 +1,10 @@
 import os
-
+from dotenv import find_dotenv, load_dotenv
 import weaviate
 
 from application.backend.datastore.main_data.main_data import MainData
 
+load_dotenv(find_dotenv())
 
 class ChatbotVectorDatabase:
     """

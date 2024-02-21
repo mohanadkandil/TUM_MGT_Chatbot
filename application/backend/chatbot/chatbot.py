@@ -1,6 +1,7 @@
 import json
 import requests
 import logging
+import uuid
 import os
 from operator import itemgetter
 import weaviate
@@ -16,6 +17,7 @@ from langchain_community.vectorstores import Weaviate
 from langchain_openai import OpenAIEmbeddings
 from pydantic import BaseModel, Field
 from langchain.schema import Document
+from application.backend.chatbot.history import PostgresChatMessageHistory
 
 load_dotenv(find_dotenv())
 
@@ -37,11 +39,10 @@ class Conversation(BaseModel):
 # Define Chatbot class (Decision-Making Module)
 class Chatbot:
 
-    def __init__(self):
-
+    def __init__(self, session_id: str = str(uuid.uuid4())):
         self.conversation_history = Conversation(conversation=[])
-
         self.chatvec = ChatbotVectorDatabase()
+        self.postgres_history = PostgresChatMessageHistory(session_id=session_id)
 
     def _format_chat_history(self, conversation: list) -> str:
 
@@ -121,7 +122,10 @@ class Chatbot:
             {"question": question, "chat_history": conversation.conversation}
         )
 
-        return {"answer": answer}
+        self.postgres_history.add_user_message(question)
+        self.postgres_history.add_ai_message(answer)
+
+        return {"answer": answer, "session_id": self.postgres_history.session_id}
 
 
 # Main function to test chatbot locally in terminal
