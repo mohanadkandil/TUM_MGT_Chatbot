@@ -1,21 +1,36 @@
 import { cn } from "@/lib/utils";
-import { ChatPanel } from "./chat-panel";
-import { useChat } from "ai/react";
-import { useState } from "react";
+import { UseChatHelpers } from "ai/react";
+import { FormEvent, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { Message } from "ai";
 import { ChatList } from "./chat-list";
 import { EmptyScreen } from "./empty-screen";
 import { QuestionsRecommendation } from "./questions-recommendation";
+import { ButtonScrollToBottom } from "./button-scroll-to-bottom";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import Textarea from "react-textarea-autosize";
+import { IconPlus, IconSend } from "./icons";
+import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 export interface ChatProps extends React.ComponentProps<"div"> {
   initialMessages?: Message[];
   id?: string;
 }
+export interface PormptProps
+  extends Pick<UseChatHelpers, "input" | "setInput"> {
+  onSubmit: (value: string) => void;
+  isLoading: boolean;
+}
 
-export function Chat({ id, initialMessages, className }: ChatProps) {
-  const router = useRouter();
+interface SimplifiedMessage {
+  id: string;
+  content: string;
+  role: "system" | "user" | "assistant" | "function" | "data" | "tool";
+}
+
+export function Chat() {
   const path = usePathname();
   const [previewToken, setPreviewToken] = useLocalStorage<string | null>(
     "ai-token",
@@ -26,28 +41,73 @@ export function Chat({ id, initialMessages, className }: ChatProps) {
   const [previewTokenInput, setPreviewTokenInput] = useState(
     previewToken ?? ""
   );
-  const { messages, append, reload, stop, isLoading, input, setInput } =
-    useChat({
-      initialMessages,
-      id,
-      body: {
-        id,
-        previewToken,
-      },
-      onResponse(response) {
-        if (response.status === 401) {
-          // toast.error(response.statusText);
-        }
-      },
-      onFinish() {
-        if (!path.includes("chat")) {
-          window.history.pushState({}, "", `/chat/${id}`);
-        }
-      },
-    });
+
+  const { formRef, onKeyDown } = useEnterSubmit();
+  const [isLoading, setIsLoading] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const router = useRouter();
+  const [messages, setMessages] = useState<SimplifiedMessage[]>([]);
+  const [input, setInput] = useState<string>("");
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    const newMessage: SimplifiedMessage = {
+      id: Date.now().toString(),
+      content: input,
+      role: "user", // or 'system', directly using the string literal
+    };
+
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setInput("");
+
+    setIsLoading(true);
+    const encodedQuestion = encodeURIComponent(input);
+    const url = `${process.env.NEXT_PUBLIC_CONVERSATIONAPI}/conversation?question=${encodedQuestion}`;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          conversation: [
+            {
+              role: "string", // Adjust the role as needed for your application
+              content: input,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Success:", data);
+      const newMessage: SimplifiedMessage = {
+        id: Date.now().toString(),
+        content: data.answer.answer,
+        role: "system", // or 'system', directly using the string literal
+      };
+
+      setMessages((prevMessages) => [...prevMessages, newMessage]);
+      // Handle success response here, such as updating UI or state accordingly
+    } catch (error) {
+      console.error("Error submitting question:", error);
+      // Handle error scenario, such as displaying an error message to the user
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  console.log(messages);
+  console.log(messages.length);
   return (
     <>
-      <div className={cn("pb-[200px] pt-4 md:pt-10", className)}>
+      <div className={cn("pb-[200px] pt-4 md:pt-10")}>
         {messages.length ? (
           <>
             <ChatList messages={messages} />
@@ -67,16 +127,63 @@ export function Chat({ id, initialMessages, className }: ChatProps) {
           </>
         )}
       </div>
-      <ChatPanel
-        id={id}
-        isLoading={isLoading}
-        stop={stop}
-        append={append}
-        reload={reload}
-        messages={messages}
-        input={input}
-        setInput={setInput}
-      />
+      <div className="fixed inset-x-0 bottom-0 w-full animate-in duration-300 ease-in-out peer-[[data-state=open]]:group-[]:lg:pl-[250px] peer-[[data-state=open]]:group-[]:xl:pl-[300px]">
+        <ButtonScrollToBottom />
+        <div className="mx-auto sm:max-w-2xl sm:px-4">
+          <div className="px-4 py-2 space-y-4 md:py-4">
+            <form onSubmit={handleSubmit}>
+              <div className="relative flex flex-col w-full px-8 overflow-hidden max-h-60 grow bg-background sm:border sm:rounded-2xl sm:px-12">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        router.refresh();
+                        router.push("/chat");
+                      }}
+                      className={cn(
+                        buttonVariants({ size: "sm", variant: "outline" }),
+                        "absolute left-0 top-4 size-8 rounded-full bg-background p-0 sm:left-4"
+                      )}
+                    >
+                      <IconPlus />
+                      <span className="sr-only">New Chat</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>New Chat</TooltipContent>
+                </Tooltip>
+                <Textarea
+                  ref={inputRef}
+                  tabIndex={0}
+                  onKeyDown={onKeyDown}
+                  rows={1}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Message TUM.Chat"
+                  spellCheck={false}
+                  className="min-h-[60px] w-full resize-none bg-transparent px-4 py-[1.3rem] focus-within:outline-none sm:text-sm"
+                />
+                <div className="absolute right-0 top-3.5 sm:right-4">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="submit"
+                        variant="ghost"
+                        size="icon"
+                        disabled={isLoading || input === ""}
+                      >
+                        <IconSend />
+                        <span className="sr-only">Send message</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Send message</TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
