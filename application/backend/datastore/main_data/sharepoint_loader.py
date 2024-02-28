@@ -1,10 +1,11 @@
 import os
+import time
 import urllib.parse
-from typing import Iterable
 
 from O365 import Account
 from dotenv import load_dotenv
 
+from application.backend.datastore.db import ChatbotVectorDatabase
 from application.backend.datastore.main_data.main_schema import LocalDocument
 
 load_dotenv()
@@ -20,10 +21,11 @@ SHAREPOINT_COLUMNS = [
     "Source",  # Currently unused
     "DegreePrograms",
     "Language",
+    "SyncStatus",
 ]
 
 
-def load_from_sharepoint() -> Iterable[LocalDocument]:
+def load_from_sharepoint() -> list[LocalDocument]:
     """
     Loads documents from SharePoint including their column values, downloading them onto the local file system.
 
@@ -43,6 +45,8 @@ def load_from_sharepoint() -> Iterable[LocalDocument]:
     assert client_secret, "O365_CLIENT_SECRET not set"
     assert drive_id, "O365_DRIVE_ID not set"
     assert folder_path, "O365_FOLDER_PATH not set"
+
+    start = time.time()
 
     account = Account(
         (client_id, client_secret),
@@ -79,30 +83,39 @@ def load_from_sharepoint() -> Iterable[LocalDocument]:
         .get_items(expand_fields=SHAREPOINT_COLUMNS)
     )
     os.makedirs(TEMP_DIR, exist_ok=True)
-    for item in items:
+    items_len = len(items)
+    downloaded = 0
+    cached = 0
+    for i, item in enumerate(items):
         # Format the web_url to get rid of encoding (e.g. %20), then split by / and get the last part
         # If this is a file name we got from OneDrive, we can get its fields
         name = urllib.parse.unquote(item.web_url).split("/")[-1]
         if name not in filenames_to_download:
             continue
-        file = files[name]
-        print(f"Downloading {name}...", end="\r")
-        file.download(to_path=TEMP_DIR, chunk_size=8 * 1024)
-        print(f"Downloading {name}... Done!")
-        local_document = LocalDocument(
-            file_path=f"{TEMP_DIR}/{name}",
-            faculty=item.fields.get("Faculty", None),
-            target_group=item.fields.get("TargetGroup", None),
-            topic=item.fields.get("Topic", None),
-            subtopic=item.fields.get("Subtopic", None),
-            title=item.fields.get("Title", None),
-            degree_programs=set(item.fields.get("DegreePrograms", [])),
-            language=item.fields.get("Language", None),
-        )
+        path = f"{TEMP_DIR}/{name}"
+        if os.path.isfile(path):
+            print(f"File {name} already exists, skipping download.")
+            cached += 1
+        else:
+            print(f"Downloading {name}... ({i + 1}/{items_len})", end="\r")
+            download_start = time.time()
+            files[name].download(to_path=TEMP_DIR, chunk_size=8 * 1024)
+            download_end = time.time()
+            print(f"Downloading {name}... (done in {download_end - download_start:.2f}s)")
+            downloaded += 1
+        local_document = LocalDocument(path, item)
         local_documents.append(local_document)
 
+    end = time.time()
+    print(f"Downloaded {downloaded} files ({cached} cached) from SharePoint in {end - start:.2f}s.")
     return local_documents
 
 
 if __name__ == "__main__":
-    load_from_sharepoint()
+    documents = load_from_sharepoint()
+    db = ChatbotVectorDatabase()
+    successes, failures = db.main.synchronize(documents)
+    for success in successes:
+        success.update_sync_status(True)
+    for failure in failures:
+        failure.update_sync_status(False)

@@ -1,5 +1,6 @@
 import hashlib
 from typing import Any
+import os
 
 import weaviate.classes as wvc
 from langchain_community.document_loaders import UnstructuredFileLoader
@@ -17,69 +18,53 @@ class Chunk:
 
     TEXT = "text"
     FACULTY = "faculty"
-    TARGET_GROUP = "target_group"
+    TARGET_GROUPS = "target_groups"
     TOPIC = "topic"
     SUBTOPIC = "subtopic"
     TITLE = "title"
     DEGREE_PROGRAMS = "degree_programs"
-    LANGUAGE = "language"
+    LANGUAGES = "languages"
     HASH = "hash"
+    URL = "url"
     HITS = "hits"
 
     text: str
     faculty: str | None
-    target_group: str | None
+    target_groups: set[str]
     topic: str | None
     subtopic: str | None
     title: str | None
     degree_programs: set[str]
-    language: str | None
+    languages: set[str]
     hash: str | None
+    url: str | None
     hits: int
 
     def __init__(
         self,
         text: str,
         faculty: str | None,
-        target_group: str | None,
+        target_groups: set[str],
         topic: str | None,
         subtopic: str | None,
         title: str | None,
         degree_programs: set[str],
-        language: str | None,
+        languages: set[str],
         hash: str | None = None,
+        url: str | None = None,
         hits: int = 0,
     ):
         self.text = text
         self.faculty = faculty
-        self.target_group = target_group
+        self.target_groups = target_groups
         self.topic = topic
         self.subtopic = subtopic
         self.title = title
         self.degree_programs = degree_programs
-        self.language = language
+        self.languages = languages
         self.hash = hash
+        self.url = url
         self.hits = hits
-
-    @classmethod
-    def from_properties(cls, properties: dict[str, Any]) -> "Chunk":
-        """
-        Create a Chunk from a dictionary of properties.
-        :param properties: The properties of the chunk as a dictionary
-        :return: The chunk
-        """
-        return cls(
-            text=properties[Chunk.TEXT],
-            faculty=properties[Chunk.FACULTY],
-            target_group=properties[Chunk.TARGET_GROUP],
-            topic=properties[Chunk.TOPIC],
-            subtopic=properties[Chunk.SUBTOPIC],
-            title=properties[Chunk.TITLE],
-            degree_programs=set(properties[Chunk.DEGREE_PROGRAMS]),
-            language=properties[Chunk.LANGUAGE],
-            hash=properties[Chunk.HASH],
-            hits=properties[Chunk.HITS],
-        )
 
     def as_properties(self) -> dict[str, Any]:
         """
@@ -89,13 +74,14 @@ class Chunk:
         return {
             Chunk.TEXT: self.text,
             Chunk.FACULTY: self.faculty,
-            Chunk.TARGET_GROUP: self.target_group,
+            Chunk.TARGET_GROUPS: self.target_groups,
             Chunk.TOPIC: self.topic,
             Chunk.SUBTOPIC: self.subtopic,
             Chunk.TITLE: self.title,
             Chunk.DEGREE_PROGRAMS: list(self.degree_programs),
-            Chunk.LANGUAGE: self.language,
+            Chunk.LANGUAGES: list(self.languages),
             Chunk.HASH: self.hash,
+            Chunk.URL: self.url,
             Chunk.HITS: self.hits,
         }
 
@@ -105,26 +91,29 @@ class LocalDocument:
     Represents a document that has not been chunked yet.
     This is more of a conceptual class than a practical one, as it shares all the same properties as a Chunk.
     """
+    file_path: str
+    item: Any
+    faculty: str | None
+    target_groups: set[str]
+    topic: str | None
+    subtopic: str | None
+    title: str | None
+    degree_programs: set[str]
+    languages: set[str]
+    url: str | None
+    _hash: str | None
 
-    def __init__(
-        self,
-        file_path: str,
-        faculty: str | None,
-        target_group: str | None,
-        topic: str | None,
-        subtopic: str | None,
-        title: str | None,
-        degree_programs: set[str],
-        language: str | None,
-    ):
+    def __init__(self, file_path: str, item):
         self.file_path = file_path
-        self.faculty = faculty
-        self.target_group = target_group
-        self.topic = topic
-        self.subtopic = subtopic
-        self.title = title
-        self.degree_programs = degree_programs
-        self.language = language
+        self.item = item
+        self.faculty = item.fields.get("Faculty", None)
+        self.target_groups = set(item.fields.get("TargetGroups", []))
+        self.topic = item.fields.get("Topic", None)
+        self.subtopic = item.fields.get("Subtopic", None)
+        self.title = item.fields.get("Title", None)
+        self.degree_programs = set(item.fields.get("DegreePrograms", []))
+        self.languages = set(item.fields.get("Language", []))
+        self.url = item.web_url
         self._hash = None  # The hash is computed lazily
 
     @property
@@ -146,13 +135,19 @@ class LocalDocument:
 
         sha1 = hashlib.sha1()
         sha1.update(content_bytes)
-        sha1.update(self.faculty.encode("utf-8"))
-        sha1.update(self.target_group.encode("utf-8"))
-        sha1.update(self.topic.encode("utf-8"))
-        sha1.update(self.subtopic.encode("utf-8"))
-        sha1.update(self.title.encode("utf-8"))
+        if self.faculty:
+            sha1.update(self.faculty.encode("utf-8"))
+        sha1.update(str(sorted(self.target_groups)).encode("utf-8"))
+        if self.topic:
+            sha1.update(self.topic.encode("utf-8"))
+        if self.subtopic:
+            sha1.update(self.subtopic.encode("utf-8"))
+        if self.title:
+            sha1.update(self.title.encode("utf-8"))
         sha1.update(str(sorted(self.degree_programs)).encode("utf-8"))
-        sha1.update(self.language.encode("utf-8"))
+        sha1.update(str(sorted(self.languages)).encode("utf-8"))
+        if self.url:
+            sha1.update(self.url.encode("utf-8"))
 
         return sha1.hexdigest()
 
@@ -160,35 +155,52 @@ class LocalDocument:
         """
         Use Unstructured to turn a LocalDocument into chunks, which can then be batch imported into Weaviate.
         """
-        chunks = UnstructuredFileLoader(
+        splitter = UnstructuredFileLoader(
             file_path=self.file_path,
             mode="elements",
-        ).load()
-        # Convert from langchain Documents to Chunks (slight misnomer, but it's the same thing)
+            strategy="fast"
+        )
         chunks = [
             Chunk(
                 text=chunk.page_content,  # The text content of the chunk
                 faculty=self.faculty,
-                target_group=self.target_group,
+                target_groups=self.target_groups,
                 topic=self.topic,
                 subtopic=self.subtopic,
                 title=self.title,
                 degree_programs=self.degree_programs,
-                language=self.language,
+                languages=self.languages,
                 hash=self.hash,  # Every chunk from the same document will have the same hash
+                url=self.url,
                 hits=0,
             )
-            for chunk in chunks
+            for chunk in splitter.load()
         ]
         return chunks
 
-    def __del__(self):
+    def update_sync_status(self, status: bool | None):
         """
-        A LocalDocument is a temporary file and will delete itself when it is no longer needed.
+        Update the sync status of the document in SharePoint.
+        :param status: Success or failure, or None to set it to "Not Yet Synced"
         """
-        import os
+        self.item.fields["SyncStatus"] = None
+        if status is not None:
+            self.item.update_fields({"SyncStatus": "Synced" if status else "Could Not Sync"})
+        else:
+            self.item.update_fields({"SyncStatus": "Not Yet Synced"})
+        self.item.save_updates()
 
+    def delete(self):
+        """
+        Delete the file from the local file system.
+        """
         os.remove(self.file_path)
+
+
+def recreate_schema(client: WeaviateClient) -> Collection:
+    if client.collections.exists(COLLECTION_NAME):
+        client.collections.delete(COLLECTION_NAME)
+    return init_schema(client)
 
 
 def init_schema(client: WeaviateClient) -> Collection:
@@ -217,9 +229,9 @@ def init_schema(client: WeaviateClient) -> Collection:
                 skip_vectorization=True,
             ),
             wvc.config.Property(
-                name=Chunk.TARGET_GROUP,
-                description="The target group of the owning document",
-                data_type=wvc.config.DataType.TEXT,
+                name=Chunk.TARGET_GROUPS,
+                description="The target group(s) of the owning document",
+                data_type=wvc.config.DataType.TEXT_ARRAY,
                 skip_vectorization=True,
             ),
             wvc.config.Property(
@@ -241,9 +253,9 @@ def init_schema(client: WeaviateClient) -> Collection:
                 skip_vectorization=True,
             ),
             wvc.config.Property(
-                name=Chunk.LANGUAGE,
-                description="The language of the owning document",
-                data_type=wvc.config.DataType.TEXT,
+                name=Chunk.LANGUAGES,
+                description="The language(s) of the owning document",
+                data_type=wvc.config.DataType.TEXT_ARRAY,
                 skip_vectorization=True,
             ),
             wvc.config.Property(
@@ -255,6 +267,12 @@ def init_schema(client: WeaviateClient) -> Collection:
             wvc.config.Property(
                 name=Chunk.HASH,
                 description="The hash of the owning document",
+                data_type=wvc.config.DataType.TEXT,
+                skip_vectorization=True,
+            ),
+            wvc.config.Property(
+                name=Chunk.URL,
+                description="The URL of the owning document",
                 data_type=wvc.config.DataType.TEXT,
                 skip_vectorization=True,
             ),
