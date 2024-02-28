@@ -20,5 +20,5 @@ export default function IndexPage() {
     isLoading,
   } = useChat({ api: "/api/tum-rag" });
 
-  return <Chat id={id} initialMessages={messages} />;
+  return <Chat />;
 }
