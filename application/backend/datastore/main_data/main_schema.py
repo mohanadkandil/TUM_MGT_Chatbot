@@ -1,13 +1,10 @@
 import hashlib
-from functools import reduce
-from typing import Any, Type
+from typing import Any
 
-import langchain_core.documents
 import weaviate.classes as wvc
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import UnstructuredFileLoader
 from weaviate import WeaviateClient
 from weaviate.collections import Collection
-from weaviate.collections.classes.filters import _FilterValue
 
 COLLECTION_NAME = "ChatbotData"
 
@@ -18,211 +15,180 @@ class Chunk:
     This is the entity class for the main data Weaviate collection.
     """
 
-    # Property names
     TEXT = "text"
-    FILEPATH = "filepath"
-    LINKS = "links"
-    LANGUAGE = "language"
+    FACULTY = "faculty"
+    TARGET_GROUP = "target_group"
+    TOPIC = "topic"
+    SUBTOPIC = "subtopic"
+    TITLE = "title"
     DEGREE_PROGRAMS = "degree_programs"
-    TOPICS = "topics"
+    LANGUAGE = "language"
     HASH = "hash"
+    HITS = "hits"
+
+    text: str
+    faculty: str | None
+    target_group: str | None
+    topic: str | None
+    subtopic: str | None
+    title: str | None
+    degree_programs: set[str]
+    language: str | None
+    hash: str | None
+    hits: int
 
     def __init__(
         self,
         text: str,
-        filepath: str,  # FIXME: Unused?
-        links: list[str],  # FIXME: Unused?
-        language: str,
+        faculty: str | None,
+        target_group: str | None,
+        topic: str | None,
+        subtopic: str | None,
+        title: str | None,
         degree_programs: set[str],
-        topics: set[str],
-        hash: str = None,
-        **kwargs  # Could come from Weaviate retrieval
+        language: str | None,
+        hash: str | None = None,
+        hits: int = 0,
     ):
         self.text = text
-        self.filepath = filepath
-        self.links = links
-        self.language = language
+        self.faculty = faculty
+        self.target_group = target_group
+        self.topic = topic
+        self.subtopic = subtopic
+        self.title = title
         self.degree_programs = degree_programs
-        self.topics = topics
-        self._hash = hash
-        self.metadata = kwargs
-
-    def __getitem__(self, item):
-        return getattr(self, item, None)
-
-    def __setitem__(self, key, value):
-        setattr(self, key, value)
-
-    def to_dict(self):
-        return {
-            Chunk.TEXT: self.text,
-            Chunk.FILEPATH: self.filepath,
-            Chunk.LINKS: self.links,
-            Chunk.LANGUAGE: self.language,
-            Chunk.DEGREE_PROGRAMS: list(self.degree_programs),
-            Chunk.TOPICS: list(self.topics),
-            Chunk.HASH: self.hash,
-        }
-
-    @property
-    def hash(self):
-        return self._hash
+        self.language = language
+        self.hash = hash
+        self.hits = hits
 
     @classmethod
-    def _merge_properties(
-        cls: Type["Document"], first: "Document", priority: "Document"
-    ) -> "Document":
+    def from_properties(cls, properties: dict[str, Any]) -> "Chunk":
         """
-        Merge two Documents, with the properties of the second Document overriding the first.
-        :param first: The document to merge into
-        :param priority: The document whose properties override the first document
-        :return: The merged document
-        """
-        return cls(**{**vars(first), **vars(priority)})
-
-    @classmethod
-    def from_langchain(
-        cls: Type["Document"], document: langchain_core.documents.Document
-    ) -> "Document":
-        """
-        Convert a langchain Document to a schema Document.
-        This assumes that the text content of the document is in the "page_content" attribute,
-        and that the rest of the properties are in the "metadata" attribute.
-        Missing properties will be set to their default values.
-        :param document: The langchain Document
-        :return: The schema Document
+        Create a Chunk from a dictionary of properties.
+        :param properties: The properties of the chunk as a dictionary
+        :return: The chunk
         """
         return cls(
-            text=document.page_content,
-            filepath=document.metadata.get("filepath", ""),
-            links=document.metadata.get("links", []),
-            language=document.metadata.get("language", ""),
-            degree_programs=document.metadata.get("degree_programs", set()),
-            topics=document.metadata.get("topics", set()),
+            text=properties[Chunk.TEXT],
+            faculty=properties[Chunk.FACULTY],
+            target_group=properties[Chunk.TARGET_GROUP],
+            topic=properties[Chunk.TOPIC],
+            subtopic=properties[Chunk.SUBTOPIC],
+            title=properties[Chunk.TITLE],
+            degree_programs=set(properties[Chunk.DEGREE_PROGRAMS]),
+            language=properties[Chunk.LANGUAGE],
+            hash=properties[Chunk.HASH],
+            hits=properties[Chunk.HITS],
         )
 
-    @classmethod
-    def from_weaviate(cls, obj: Any) -> "Chunk":
+    def as_properties(self) -> dict[str, Any]:
         """
-        Convert a Weaviate object to a Chunk.
-        This expects that the Weaviate object has attributes "properties" and "metadata",
-        and that the union of these two dictionaries contains all the properties of a Chunk.
-        :param obj: The Weaviate object
-        :return: The Chunk
+        Convert the chunk to a dictionary of properties.
+        :return: The properties of the chunk as a dictionary
         """
-
-        metadata_dict = {
-            "score": obj.metadata.score,
-            "explain_score": obj.metadata.explain_score,
+        return {
+            Chunk.TEXT: self.text,
+            Chunk.FACULTY: self.faculty,
+            Chunk.TARGET_GROUP: self.target_group,
+            Chunk.TOPIC: self.topic,
+            Chunk.SUBTOPIC: self.subtopic,
+            Chunk.TITLE: self.title,
+            Chunk.DEGREE_PROGRAMS: list(self.degree_programs),
+            Chunk.LANGUAGE: self.language,
+            Chunk.HASH: self.hash,
+            Chunk.HITS: self.hits,
         }
-        return Chunk(**{**obj.properties, **metadata_dict})
 
 
-class Document(Chunk):
+class LocalDocument:
     """
     Represents a document that has not been chunked yet.
     This is more of a conceptual class than a practical one, as it shares all the same properties as a Chunk.
     """
 
+    def __init__(
+        self,
+        file_path: str,
+        faculty: str | None,
+        target_group: str | None,
+        topic: str | None,
+        subtopic: str | None,
+        title: str | None,
+        degree_programs: set[str],
+        language: str | None,
+    ):
+        self.file_path = file_path
+        self.faculty = faculty
+        self.target_group = target_group
+        self.topic = topic
+        self.subtopic = subtopic
+        self.title = title
+        self.degree_programs = degree_programs
+        self.language = language
+        self._hash = None  # The hash is computed lazily
+
     @property
-    def hash(self):
+    def hash(self) -> str:
+        """
+        The hash of the document.
+        """
         if self._hash is None:
-            self._hash = self.compute_hash()
+            self._hash = self._compute_hash()
         return self._hash
 
-    def compute_hash(self):
+    def _compute_hash(self):
         """
-        Compute the hash of the document using the other properties.
+        Compute the hash of the document using the raw bytes from the file and the properties from SharePoint.
         This hash is used to correlate chunks in Weaviate with their owning documents.
-        :return: The hash of the document
         """
+        with open(self.file_path, "rb") as file:
+            content_bytes = file.read()
+
         sha1 = hashlib.sha1()
-        sha1.update(self.text.encode("utf-8"))
-        sha1.update(self.filepath.encode("utf-8"))
-        sha1.update(str(self.links).encode("utf-8"))
+        sha1.update(content_bytes)
+        sha1.update(self.faculty.encode("utf-8"))
+        sha1.update(self.target_group.encode("utf-8"))
+        sha1.update(self.topic.encode("utf-8"))
+        sha1.update(self.subtopic.encode("utf-8"))
+        sha1.update(self.title.encode("utf-8"))
+        sha1.update(str(sorted(self.degree_programs)).encode("utf-8"))
         sha1.update(self.language.encode("utf-8"))
-        sha1.update(str(self.degree_programs).encode("utf-8"))
-        sha1.update(str(self.topics).encode("utf-8"))
+
         return sha1.hexdigest()
 
     def chunk(self) -> list["Chunk"]:
         """
-        Chunk a Document into smaller pieces.
-        This method should be called on a document before adding it to Weaviate.
-        :return: The chunks with all the properties of the original document (and some chunk-specific overrides)
+        Use Unstructured to turn a LocalDocument into chunks, which can then be batch imported into Weaviate.
         """
-        chunks = RecursiveCharacterTextSplitter(
-            separators=["\n", "\r\n"],
-            chunk_size=100,
-            chunk_overlap=10,
-        ).split_text(self.text)
+        chunks = UnstructuredFileLoader(
+            file_path=self.file_path,
+            mode="elements",
+        ).load()
         # Convert from langchain Documents to Chunks (slight misnomer, but it's the same thing)
         chunks = [
             Chunk(
-                text=chunk_text,
-                filepath=self.filepath,
-                links=self.links,
-                language=self.language,
+                text=chunk.page_content,  # The text content of the chunk
+                faculty=self.faculty,
+                target_group=self.target_group,
+                topic=self.topic,
+                subtopic=self.subtopic,
+                title=self.title,
                 degree_programs=self.degree_programs,
-                topics=self.topics,
-                hash=self.hash,
+                language=self.language,
+                hash=self.hash,  # Every chunk from the same document will have the same hash
+                hits=0,
             )
-            for chunk_text in chunks
+            for chunk in chunks
         ]
         return chunks
 
+    def __del__(self):
+        """
+        A LocalDocument is a temporary file and will delete itself when it is no longer needed.
+        """
+        import os
 
-class ChunkFilter:
-    """
-    Represents a filter for chunks in Weaviate.
-    This is a simple class that can be used to filter chunks by their properties during retrieval.
-    """
-
-    def __init__(
-        self,
-        language: str = None,
-        degree_programs: set[str] = None,
-        topics: set[str] = None,
-    ):
-        """
-        Initialize the filter. Leave a property as None to not filter by that property.
-        :param language: The language of the chunks to retrieve
-        :param degree_programs: Only fetch chunks that are about at least one of these degree programs.
-        General documents will always be included. An empty set will only fetch general documents.
-        :param topics: Only fetch chunks that are about at least one of these topics.
-        """
-        self.properties = {
-            Chunk.LANGUAGE: language,
-            Chunk.DEGREE_PROGRAMS: list(degree_programs | {""}),
-            Chunk.TOPICS: list(topics),
-        }
-
-    def into_weaviate(self) -> _FilterValue or None:
-        """
-        Convert the filter to a weaviate filter.
-        :return: The Weaviate filter
-        """
-        filters = []
-        if Chunk.LANGUAGE in self.properties:
-            filters.append(
-                wvc.query.Filter.by_property(Chunk.LANGUAGE).equal(
-                    self.properties[Chunk.LANGUAGE]
-                )
-            )
-        if Chunk.DEGREE_PROGRAMS in self.properties:
-            filters.append(
-                wvc.query.Filter.by_property(Chunk.DEGREE_PROGRAMS).contains_any(
-                    self.properties[Chunk.DEGREE_PROGRAMS]
-                )
-            )
-        if Chunk.TOPICS in self.properties:
-            filters.append(
-                wvc.query.Filter.by_property(Chunk.TOPICS).contains_any(
-                    self.properties[Chunk.TOPICS]
-                )
-            )
-        filters = reduce(lambda a, b: a & b, filters) if filters else None
-        return filters
+        os.remove(self.file_path)
 
 
 def init_schema(client: WeaviateClient) -> Collection:
@@ -245,33 +211,44 @@ def init_schema(client: WeaviateClient) -> Collection:
                 # This is the property that will be vectorized, we do not skip it here like the others
             ),
             wvc.config.Property(
-                name=Chunk.FILEPATH,
-                description="The path of the owning document in OneDrive",
+                name=Chunk.FACULTY,
+                description="The faculty of the owning document",
                 data_type=wvc.config.DataType.TEXT,
                 skip_vectorization=True,
             ),
             wvc.config.Property(
-                name=Chunk.LINKS,
-                description="The links in the chunk",
-                data_type=wvc.config.DataType.TEXT_ARRAY,
+                name=Chunk.TARGET_GROUP,
+                description="The target group of the owning document",
+                data_type=wvc.config.DataType.TEXT,
+                skip_vectorization=True,
+            ),
+            wvc.config.Property(
+                name=Chunk.TOPIC,
+                description="The topic of the owning document",
+                data_type=wvc.config.DataType.TEXT,
+                skip_vectorization=True,
+            ),
+            wvc.config.Property(
+                name=Chunk.SUBTOPIC,
+                description="The subtopic of the owning document",
+                data_type=wvc.config.DataType.TEXT,
+                skip_vectorization=True,
+            ),
+            wvc.config.Property(
+                name=Chunk.TITLE,
+                description="The title of the owning document",
+                data_type=wvc.config.DataType.TEXT,
                 skip_vectorization=True,
             ),
             wvc.config.Property(
                 name=Chunk.LANGUAGE,
-                description="The language of the owning document",  # TODO: by-chunk language detection? Unstructured?
+                description="The language of the owning document",
                 data_type=wvc.config.DataType.TEXT,
                 skip_vectorization=True,
             ),
             wvc.config.Property(
                 name=Chunk.DEGREE_PROGRAMS,
-                # Empty = general. TODO: Can a document be about multiple degree programs?
                 description="The degree program(s) the owning document is associated with",
-                data_type=wvc.config.DataType.TEXT_ARRAY,
-                skip_vectorization=True,
-            ),
-            wvc.config.Property(
-                name=Chunk.TOPICS,
-                description="The topic(s) of the owning document",
                 data_type=wvc.config.DataType.TEXT_ARRAY,
                 skip_vectorization=True,
             ),
@@ -279,6 +256,12 @@ def init_schema(client: WeaviateClient) -> Collection:
                 name=Chunk.HASH,
                 description="The hash of the owning document",
                 data_type=wvc.config.DataType.TEXT,
+                skip_vectorization=True,
+            ),
+            wvc.config.Property(
+                name=Chunk.HITS,
+                description="The number of times the chunk has been retrieved",
+                data_type=wvc.config.DataType.INT,
                 skip_vectorization=True,
             ),
         ],

@@ -1,10 +1,12 @@
 import os
-from dotenv import find_dotenv, load_dotenv
+
 import weaviate
+from dotenv import find_dotenv, load_dotenv
 
 from application.backend.datastore.main_data.main_data import MainData
 
 load_dotenv(find_dotenv())
+
 
 class ChatbotVectorDatabase:
     """
@@ -31,9 +33,7 @@ class ChatbotVectorDatabase:
         self.client = weaviate.connect_to_wcs(
             cluster_url=url,
             auth_credentials=weaviate.auth.AuthApiKey(weaviate_api_key),
-            headers={
-                "X-OpenAI-Api-Key": openai_api_key
-            }
+            headers={"X-OpenAI-Api-Key": openai_api_key},
         )
         self.main = MainData(self)
 

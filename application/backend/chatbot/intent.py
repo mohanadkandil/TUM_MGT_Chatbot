@@ -6,12 +6,17 @@ import os
 
 load_dotenv()
 
-chat = ChatOpenAI(model_name="gpt-3.5-turbo-16k", openai_api_key=os.getenv("OPENAI_API_KEY"), temperature=0,
-                  max_tokens=8)
+chat = ChatOpenAI(
+    model_name="gpt-3.5-turbo-16k",
+    openai_api_key=os.getenv("OPENAI_API_KEY"),
+    temperature=0,
+    max_tokens=8,
+)
 
 
 class Intent(enum.Enum):
     """Enumeration for classifying user intent."""
+
     COURSE_AND_PROGRAM_MANAGEMENT = enum.auto()
     ACADEMIC_PROCEDURES_AND_POLICIES = enum.auto()
     CREDIT_AND_ACADEMIC_RECOGNITION = enum.auto()

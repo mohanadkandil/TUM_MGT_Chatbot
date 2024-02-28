@@ -38,14 +38,12 @@ class Conversation(BaseModel):
 
 # Define Chatbot class (Decision-Making Module)
 class Chatbot:
-
     def __init__(self, session_id: str = str(uuid.uuid4())):
         self.conversation_history = Conversation(conversation=[])
         self.chatvec = ChatbotVectorDatabase()
         self.postgres_history = PostgresChatMessageHistory(session_id=session_id)
 
     def _format_chat_history(self, conversation: list) -> str:
-
         formatted_history = ""
         for message in conversation:
             formatted_history += f"{message.role}: {message.content}\n"
