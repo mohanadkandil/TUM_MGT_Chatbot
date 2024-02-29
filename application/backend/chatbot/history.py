@@ -20,11 +20,13 @@ host = "som-postgres.postgres.database.azure.com"
 dbname = "postgres"
 user = os.environ.get("POSTGRES_USER")
 password = os.environ.get("POSTGRES_PASSWORD")
-#sslmode = "require"
+# sslmode = "require"
 
 DEFAULT_CONNECTION_STRING = "postgresql://postgres:admin@localhost/testdb"
 
-conn_string = "host={0} user={1} dbname={2} password={3}".format(host, user, dbname, password) #sslmode can be added
+conn_string = "host={0} user={1} dbname={2} password={3}".format(
+    host, user, dbname, password
+)  # sslmode can be added
 
 
 class PostgresChatMessageHistory(BaseChatMessageHistory):
@@ -36,7 +38,6 @@ class PostgresChatMessageHistory(BaseChatMessageHistory):
         connection_string: str = conn_string,
         table_name: str = "message_store",
     ):
-
         try:
             self.connection = psycopg.connect(connection_string)
             self.cursor = self.connection.cursor(row_factory=dict_row)

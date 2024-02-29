@@ -33,11 +33,11 @@ export function Chat() {
   );
 
   const { formRef, onKeyDown } = useEnterSubmit();
-  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>("");
+  const isLoadingRef = useRef(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,11 +47,10 @@ export function Chat() {
       content: input,
       role: "user", // or 'system', directly using the string literal
     };
-
+    isLoadingRef.current = true;
     setMessages((prevMessages) => [...prevMessages, newMessage]);
     setInput("");
 
-    setIsLoading(true);
     const encodedQuestion = encodeURIComponent(input);
     const url = `${process.env.NEXT_PUBLIC_CONVERSATIONAPI}/conversation?question=${encodedQuestion}`;
 
@@ -79,22 +78,19 @@ export function Chat() {
       const data = await response.json();
       console.log("Success:", data);
       const newMessage: Message = {
+
         id: Date.now().toString(),
         content: data.answer.answer,
         role: "system", // or 'system', directly using the string literal
       };
-
       setMessages((prevMessages) => [...prevMessages, newMessage]);
+      isLoadingRef.current = false;
       // Handle success response here, such as updating UI or state accordingly
     } catch (error) {
       console.error("Error submitting question:", error);
       // Handle error scenario, such as displaying an error message to the user
-    } finally {
-      setIsLoading(false);
     }
   };
-  console.log(messages);
-  console.log(messages.length);
   return (
     <>
       <div className={cn("pb-[200px] pt-4 md:pt-10")}>
@@ -119,6 +115,19 @@ export function Chat() {
       </div>
       <div className="fixed inset-x-0 bottom-0 w-full animate-in duration-300 ease-in-out peer-[[data-state=open]]:group-[]:lg:pl-[250px] peer-[[data-state=open]]:group-[]:xl:pl-[300px]">
         <ButtonScrollToBottom />
+        <div className="mx-auto sm:max-w-2xl sm:px-4">
+          <div className="flex items-center justify-center h-12">
+            {isLoadingRef.current ? (
+              <Button
+                variant="outline"
+                onClick={() => stop()}
+                className="bg-background"
+              >
+                Generating ...
+              </Button>
+            ) : null}
+          </div>
+        </div>
         <div className="mx-auto sm:max-w-2xl sm:px-4">
           <div className="px-4 py-2 space-y-4 md:py-4">
             <form onSubmit={handleSubmit}>
@@ -160,7 +169,7 @@ export function Chat() {
                         type="submit"
                         variant="ghost"
                         size="icon"
-                        disabled={isLoading || input === ""}
+                        disabled={isLoadingRef.current || input === ""}
                       >
                         <IconSend />
                         <span className="sr-only">Send message</span>
