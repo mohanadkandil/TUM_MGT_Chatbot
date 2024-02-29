@@ -3,7 +3,6 @@ import { UseChatHelpers } from "ai/react";
 import { FormEvent, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
-import { Message } from "ai";
 import { ChatList } from "./chat-list";
 import { EmptyScreen } from "./empty-screen";
 import { QuestionsRecommendation } from "./questions-recommendation";
@@ -13,21 +12,12 @@ import Textarea from "react-textarea-autosize";
 import { IconPlus, IconSend } from "./icons";
 import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Message } from "@/lib/types";
 
-export interface ChatProps extends React.ComponentProps<"div"> {
-  initialMessages?: Message[];
-  id?: string;
-}
 export interface PormptProps
   extends Pick<UseChatHelpers, "input" | "setInput"> {
   onSubmit: (value: string) => void;
   isLoading: boolean;
-}
-
-interface SimplifiedMessage {
-  id: string;
-  content: string;
-  role: "system" | "user" | "assistant" | "function" | "data" | "tool";
 }
 
 export function Chat() {
@@ -46,13 +36,13 @@ export function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
-  const [messages, setMessages] = useState<SimplifiedMessage[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>("");
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    const newMessage: SimplifiedMessage = {
+    const newMessage: Message = {
       id: Date.now().toString(),
       content: input,
       role: "user", // or 'system', directly using the string literal
@@ -88,7 +78,7 @@ export function Chat() {
 
       const data = await response.json();
       console.log("Success:", data);
-      const newMessage: SimplifiedMessage = {
+      const newMessage: Message = {
         id: Date.now().toString(),
         content: data.answer.answer,
         role: "system", // or 'system', directly using the string literal
