@@ -6,26 +6,15 @@ from O365 import Account
 from dotenv import load_dotenv
 
 from application.backend.datastore.db import ChatbotVectorDatabase
-from application.backend.datastore.main_data.main_schema import LocalDocument
+from application.backend.datastore.main_data.main_data import elapsed
+from application.backend.datastore.main_data.sharepoint_document import SharepointDocument
 
 load_dotenv()
 
 TEMP_DIR = "sharepoint_temp"
 
-SHAREPOINT_COLUMNS = [
-    "Faculty",
-    "TargetGroup",
-    "Topic",
-    "Subtopic",
-    "Title",
-    "Source",  # Currently unused
-    "DegreePrograms",
-    "Language",
-    "SyncStatus",
-]
 
-
-def load_from_sharepoint() -> list[LocalDocument]:
+def load_from_sharepoint() -> list[SharepointDocument]:
     """
     Loads documents from SharePoint including their column values, downloading them onto the local file system.
 
@@ -35,7 +24,7 @@ def load_from_sharepoint() -> list[LocalDocument]:
     O365_DRIVE_ID: The ID of the SharePoint drive
     O365_FOLDER_PATH: The path of the folder in SharePoint
 
-    :return: an iterable of LocalDocuments
+    :return: an iterable of SharepointDocuments
     """
     client_id = os.environ["O365_CLIENT_ID"]
     client_secret = os.environ["O365_CLIENT_SECRET"]
@@ -80,7 +69,16 @@ def load_from_sharepoint() -> list[LocalDocument]:
         account.sharepoint()
         .get_site("tumde.sharepoint.com", "/sites/MGTChatbot")
         .get_list_by_name(folder_path)
-        .get_items(expand_fields=SHAREPOINT_COLUMNS)
+        .get_items(expand_fields=[
+            SharepointDocument.FACULTY,
+            SharepointDocument.TARGET_GROUPS,
+            SharepointDocument.TOPIC,
+            SharepointDocument.SUBTOPIC,
+            SharepointDocument.TITLE,
+            SharepointDocument.DEGREE_PROGRAMS,
+            SharepointDocument.LANGUAGES,
+            SharepointDocument.SYNC_STATUS
+        ])
     )
     os.makedirs(TEMP_DIR, exist_ok=True)
     items_len = len(items)
@@ -100,19 +98,19 @@ def load_from_sharepoint() -> list[LocalDocument]:
             print(f"Downloading {name}... ({i + 1}/{items_len})", end="\r")
             download_start = time.time()
             files[name].download(to_path=TEMP_DIR, chunk_size=8 * 1024)
-            download_end = time.time()
-            print(f"Downloading {name}... (done in {download_end - download_start:.2f}s)")
+            download_duration = elapsed(download_start)
+            print(f"Downloading {name}... (done in {download_duration})")
             downloaded += 1
-        local_document = LocalDocument(path, item)
+        local_document = SharepointDocument(path, item)
         local_documents.append(local_document)
 
-    end = time.time()
-    print(f"Downloaded {downloaded} files ({cached} cached) from SharePoint in {end - start:.2f}s.")
+    total_duration = elapsed(start)
+    print(f"Downloaded {downloaded} files ({cached} cached) from SharePoint in {total_duration}.")
     return local_documents
 
 
 if __name__ == "__main__":
-    documents = load_from_sharepoint()
+    documents = load_from_sharepoint()  # Limit to 10 documents for testing
     db = ChatbotVectorDatabase()
     successes, failures = db.main.synchronize(documents)
     for success in successes:

@@ -1,17 +1,21 @@
 import time
-import sys
 
 import weaviate.classes as wvc
 
 import application.backend.datastore.main_data.main_schema as main_schema
-from application.backend.datastore.main_data.main_schema import (
-    LocalDocument,
-    Chunk,
-)
+from application.backend.datastore.main_data.main_schema import Chunk
+from application.backend.datastore.main_data.sharepoint_document import SharepointDocument
 
 
-def eprint(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
+def elapsed(start: float) -> str:
+    """
+    Get the elapsed time since the given start time.
+    :param start: The start time
+    :return: The elapsed time as a string
+    """
+    now = time.time()
+    minutes, seconds = divmod(now - start, 60)
+    return f"{int(minutes)}m {int(seconds)}s"
 
 
 class MainData:
@@ -57,7 +61,23 @@ class MainData:
         )
         print(f"Successfully removed {result.successful} documents, {result.failed} failed.")
 
-    def synchronize(self, documents: list[LocalDocument]) -> (list[LocalDocument], list[LocalDocument]):
+    def _import_chunks(self, chunks: list[Chunk]):
+        """
+        Import the given chunks into Weaviate.
+        :param chunks: The chunks to import
+        """
+        print(f"Uploading {len(chunks)} chunks...", end="\r")
+        upload_start = time.time()
+        with self.collection.batch.dynamic() as batch:
+            for document_chunk in chunks:
+                batch.add_object(properties=document_chunk.as_properties())
+        batch.flush()
+        upload_time = elapsed(upload_start)
+        if batch.number_errors > 0:
+            raise Exception(f"Failed to upload {batch.number_errors} chunks.")
+        print(f"Uploaded {len(chunks)} chunks (done in {upload_time}).")
+
+    def synchronize(self, documents: list[SharepointDocument]) -> (list[SharepointDocument], list[SharepointDocument]):
         """
         Synchronize the database with the provided LocalDocuments as the source of truth.
         This will add new documents to the database that are not already in it,
@@ -94,24 +114,22 @@ class MainData:
             try:
                 chunk_start = time.time()
                 chunks = document.chunk()
-                chunk_end = time.time()
-                synced.append(document)
+                chunk_time = elapsed(chunk_start)
             except Exception as e:
                 print(f"Error while chunking {document.file_path}: {e}")
-                eprint(f"Stack trace: {e.__traceback__}")
+                print(f"Stack trace: {str(e.__traceback__)}")
                 failures.append(document)
                 continue
-            print(f"{progress} Chunked document '{document.file_path}' (done in {chunk_end - chunk_start:.2f}s).")
-            print(f"Uploading {len(chunks)} chunks...", end="\r")
-            upload_start = time.time()
-            with self.collection.batch.dynamic() as batch:
-                for document_chunk in chunks:
-                    batch.add_object(properties=document_chunk.as_properties())
-            upload_end = time.time()
-            print(f"Uploaded {len(chunks)} chunks (done in {upload_end - upload_start:.2f}s).")
-        end = time.time()
+            print(f"{progress} Chunked document '{document.file_path}' into {len(chunks)} chunks (done in {chunk_time}).")
+            try:
+                self._import_chunks(chunks)
+                synced.append(document)
+            except Exception as e:
+                print(f"Error while uploading chunks of {document.file_path}: {e}")
+                failures.append(document)
+        total_time = elapsed(start)
         print(f"Successfully synchronized {len(synced)} documents, {len(new_documents) - len(failures)} new, "
-              f"{len(failures)} failed (done in {end - start:.2f}s).")
+              f"{len(failures)} failed (done in {total_time}).")
         return synced, failures
 
     def search(
@@ -155,7 +173,7 @@ class MainData:
                 topic=obj.properties[Chunk.TOPIC],
                 subtopic=obj.properties[Chunk.SUBTOPIC],
                 title=obj.properties[Chunk.TITLE],
-                degree_programs=set(obj.properties[Chunk.DEGREE_PROGRAMS]),
+                degree_programs=obj.properties[Chunk.DEGREE_PROGRAMS],
                 languages=obj.properties[Chunk.LANGUAGES],
                 hash=obj.properties[Chunk.HASH],
                 url=obj.properties[Chunk.URL],

@@ -1,9 +1,6 @@
-import hashlib
 from typing import Any
-import os
 
 import weaviate.classes as wvc
-from langchain_community.document_loaders import UnstructuredFileLoader
 from weaviate import WeaviateClient
 from weaviate.collections import Collection
 
@@ -30,12 +27,12 @@ class Chunk:
 
     text: str
     faculty: str | None
-    target_groups: set[str]
+    target_groups: list[str]
     topic: str | None
     subtopic: str | None
     title: str | None
-    degree_programs: set[str]
-    languages: set[str]
+    degree_programs: list[str]
+    languages: list[str]
     hash: str | None
     url: str | None
     hits: int
@@ -44,12 +41,12 @@ class Chunk:
         self,
         text: str,
         faculty: str | None,
-        target_groups: set[str],
+        target_groups: list[str],
         topic: str | None,
         subtopic: str | None,
         title: str | None,
-        degree_programs: set[str],
-        languages: set[str],
+        degree_programs: list[str],
+        languages: list[str],
         hash: str | None = None,
         url: str | None = None,
         hits: int = 0,
@@ -78,123 +75,12 @@ class Chunk:
             Chunk.TOPIC: self.topic,
             Chunk.SUBTOPIC: self.subtopic,
             Chunk.TITLE: self.title,
-            Chunk.DEGREE_PROGRAMS: list(self.degree_programs),
-            Chunk.LANGUAGES: list(self.languages),
+            Chunk.DEGREE_PROGRAMS: self.degree_programs,
+            Chunk.LANGUAGES: self.languages,
             Chunk.HASH: self.hash,
             Chunk.URL: self.url,
             Chunk.HITS: self.hits,
         }
-
-
-class LocalDocument:
-    """
-    Represents a document that has not been chunked yet.
-    This is more of a conceptual class than a practical one, as it shares all the same properties as a Chunk.
-    """
-    file_path: str
-    item: Any
-    faculty: str | None
-    target_groups: set[str]
-    topic: str | None
-    subtopic: str | None
-    title: str | None
-    degree_programs: set[str]
-    languages: set[str]
-    url: str | None
-    _hash: str | None
-
-    def __init__(self, file_path: str, item):
-        self.file_path = file_path
-        self.item = item
-        self.faculty = item.fields.get("Faculty", None)
-        self.target_groups = set(item.fields.get("TargetGroups", []))
-        self.topic = item.fields.get("Topic", None)
-        self.subtopic = item.fields.get("Subtopic", None)
-        self.title = item.fields.get("Title", None)
-        self.degree_programs = set(item.fields.get("DegreePrograms", []))
-        self.languages = set(item.fields.get("Language", []))
-        self.url = item.web_url
-        self._hash = None  # The hash is computed lazily
-
-    @property
-    def hash(self) -> str:
-        """
-        The hash of the document.
-        """
-        if self._hash is None:
-            self._hash = self._compute_hash()
-        return self._hash
-
-    def _compute_hash(self):
-        """
-        Compute the hash of the document using the raw bytes from the file and the properties from SharePoint.
-        This hash is used to correlate chunks in Weaviate with their owning documents.
-        """
-        with open(self.file_path, "rb") as file:
-            content_bytes = file.read()
-
-        sha1 = hashlib.sha1()
-        sha1.update(content_bytes)
-        if self.faculty:
-            sha1.update(self.faculty.encode("utf-8"))
-        sha1.update(str(sorted(self.target_groups)).encode("utf-8"))
-        if self.topic:
-            sha1.update(self.topic.encode("utf-8"))
-        if self.subtopic:
-            sha1.update(self.subtopic.encode("utf-8"))
-        if self.title:
-            sha1.update(self.title.encode("utf-8"))
-        sha1.update(str(sorted(self.degree_programs)).encode("utf-8"))
-        sha1.update(str(sorted(self.languages)).encode("utf-8"))
-        if self.url:
-            sha1.update(self.url.encode("utf-8"))
-
-        return sha1.hexdigest()
-
-    def chunk(self) -> list["Chunk"]:
-        """
-        Use Unstructured to turn a LocalDocument into chunks, which can then be batch imported into Weaviate.
-        """
-        splitter = UnstructuredFileLoader(
-            file_path=self.file_path,
-            mode="elements",
-            strategy="fast"
-        )
-        chunks = [
-            Chunk(
-                text=chunk.page_content,  # The text content of the chunk
-                faculty=self.faculty,
-                target_groups=self.target_groups,
-                topic=self.topic,
-                subtopic=self.subtopic,
-                title=self.title,
-                degree_programs=self.degree_programs,
-                languages=self.languages,
-                hash=self.hash,  # Every chunk from the same document will have the same hash
-                url=self.url,
-                hits=0,
-            )
-            for chunk in splitter.load()
-        ]
-        return chunks
-
-    def update_sync_status(self, status: bool | None):
-        """
-        Update the sync status of the document in SharePoint.
-        :param status: Success or failure, or None to set it to "Not Yet Synced"
-        """
-        self.item.fields["SyncStatus"] = None
-        if status is not None:
-            self.item.update_fields({"SyncStatus": "Synced" if status else "Could Not Sync"})
-        else:
-            self.item.update_fields({"SyncStatus": "Not Yet Synced"})
-        self.item.save_updates()
-
-    def delete(self):
-        """
-        Delete the file from the local file system.
-        """
-        os.remove(self.file_path)
 
 
 def recreate_schema(client: WeaviateClient) -> Collection:
