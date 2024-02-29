@@ -43,8 +43,7 @@ class MainData:
         :return: The distinct hashes of the documents in Weaviate
         """
         hashes = set()
-        result = self.collection.query.fetch_objects(return_properties=[Chunk.HASH])
-        for obj in result.objects:
+        for obj in self.collection.iterator(return_properties=[Chunk.HASH]):
             hashes.add(obj.properties[Chunk.HASH])
         return hashes
 

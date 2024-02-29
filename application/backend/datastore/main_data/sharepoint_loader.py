@@ -110,8 +110,9 @@ def load_from_sharepoint() -> list[SharepointDocument]:
 
 
 if __name__ == "__main__":
-    documents = load_from_sharepoint()  # Limit to 10 documents for testing
+    documents = load_from_sharepoint()
     db = ChatbotVectorDatabase()
+    # print(len(db.main._fetch_distinct_hashes()))
     successes, failures = db.main.synchronize(documents)
     for success in successes:
         success.update_sync_status(True)
