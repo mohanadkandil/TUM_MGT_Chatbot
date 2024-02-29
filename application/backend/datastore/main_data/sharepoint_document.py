@@ -106,12 +106,16 @@ class SharepointDocument:
         """
         return self.item.fields[SharepointDocument.SYNC_STATUS] == SyncStatus.MARKED_FOR_RESYNC
 
-    def update_sync_status(self, status: bool):
+    def update_sync_status(self, success: bool):
         """
         Update the sync status of the document in SharePoint.
-        :param status: Whether the document was successfully synced
+        :param success: Whether the document was successfully synced
         """
-        self.item.update_fields({SharepointDocument.SYNC_STATUS: SyncStatus.SYNCED if status else SyncStatus.COULD_NOT_SYNC})
+        current_status = self.item.fields[SharepointDocument.SYNC_STATUS]
+        new_status = SyncStatus.SYNCED if success else SyncStatus.COULD_NOT_SYNC
+        if current_status == new_status:
+            return
+        self.item.update_fields({SharepointDocument.SYNC_STATUS: new_status})
         self.item.save_updates()
 
     def delete(self):

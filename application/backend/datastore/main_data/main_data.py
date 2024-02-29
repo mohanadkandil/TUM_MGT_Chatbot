@@ -99,9 +99,6 @@ class MainData:
         hashes_to_keep_in_db = db_hashes - hashes_to_remove_from_db
         hashes_to_upload = truth_hashes - hashes_to_keep_in_db
 
-        for existing_doc in [doc for doc in source_of_truth if doc.hash in hashes_to_keep_in_db]:
-            existing_doc.update_sync_status(True)
-
         if hashes_marked_for_resync:
             print(f"{len(hashes_marked_for_resync)} documents are marked for resynchronization and will be re-imported.")
         print(f"{len(hashes_to_remove_from_db)} documents will be removed, {len(hashes_to_keep_in_db)} documents "
@@ -109,10 +106,12 @@ class MainData:
 
         # Remove documents that are no longer in the source of truth
         if hashes_to_remove_from_db:
+            print(f"Removing documents from vector database...")
             for hash in hashes_to_remove_from_db:
                 self._remove_by_hash(hash)
 
         # Add new documents from the source of truth
+        print(f"Uploading new documents to vector database...")
         documents_to_upload = [truth_docs_by_hash[hash] for hash in hashes_to_upload]
         successes = 0
         fails = 0
@@ -139,6 +138,11 @@ class MainData:
                 traceback.print_exc()
                 document.update_sync_status(False)
                 fails += 1
+        print("Updating sync status in SharePoint...")
+        # These are just the documents which did not change - we set their sync status to True if it isn't already
+        # Those that did change already had their sync status updated
+        for existing_doc in [doc for doc in source_of_truth if doc.hash in hashes_to_keep_in_db]:
+            existing_doc.update_sync_status(True)
         total_time = elapsed(start)
         print(f"Of the {len(documents_to_upload)} documents to upload, {successes} succeeded and {fails} failed.")
         print(f"Synchronized vector database with source of truth in {total_time}.")
