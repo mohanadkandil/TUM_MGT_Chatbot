@@ -53,10 +53,11 @@ class MainData:
         Remove documents from Weaviate by their hashes.
         :param hash: The hashes of the documents to remove
         """
+        print(f"Removing chunks with hash '{hash}'...", end="\r")
         result = self.collection.data.delete_many(
             where=wvc.query.Filter.by_property(Chunk.HASH).equal(hash)
         )
-        print(f"Successfully removed {result.successful} chunks with hash '{hash}', {result.failed} failed.")
+        print(f"Removed {result.successful} chunks with hash '{hash}', {result.failed} failed.")
 
     def _import_chunks(self, chunks: list[Chunk]):
         """
@@ -74,7 +75,7 @@ class MainData:
             raise Exception(f"Failed to upload {batch.number_errors} chunks.")
         print(f"Uploaded {len(chunks)} chunks (done in {upload_time}).")
 
-    def synchronize(self, documents: list[SharepointDocument]):
+    def synchronize(self, source_of_truth: list[SharepointDocument]):
         """
         Synchronize the database with the provided LocalDocuments as the source of truth.
         This will add new documents to the database that are not already in it,
@@ -82,7 +83,7 @@ class MainData:
         Provided documents that are already in the database will not be re-added.
         This is done by comparing the hashes of the documents.
         This method should be called periodically to ensure that the database is up-to-date.
-        :param documents: The source of truth
+        :param source_of_truth: The source of truth
         :return: A tuple of two lists: the first list contains the documents that were successfully added/updated,
         the second list contains the documents that failed to be added/updated
         """
@@ -91,26 +92,33 @@ class MainData:
         # Fetch the current hashes from Weaviate
         db_hashes = self._fetch_distinct_hashes()
         print(f"Found {len(db_hashes)} documents in vector database, comparing with source of truth...")
-        truth_docs_by_hash = {doc.hash: doc for doc in documents}
-        unchanged_hashes = db_hashes & truth_docs_by_hash.keys()
-        print(f"{len(unchanged_hashes)} documents have not changed since the last sync and will not be re-added.")
+        truth_docs_by_hash = {doc.hash: doc for doc in source_of_truth}
+        truth_hashes = truth_docs_by_hash.keys()
+        hashes_marked_for_resync = {hash for hash, doc in truth_docs_by_hash.items() if doc.is_marked_for_resync()}
+        hashes_to_remove_from_db = db_hashes - (truth_hashes - hashes_marked_for_resync)
+        hashes_to_keep_in_db = db_hashes - hashes_to_remove_from_db
+        hashes_to_upload = truth_hashes - hashes_to_keep_in_db
+
+        for existing_doc in [doc for doc in source_of_truth if doc.hash in hashes_to_keep_in_db]:
+            existing_doc.update_sync_status(True)
+
+        if hashes_marked_for_resync:
+            print(f"{len(hashes_marked_for_resync)} documents are marked for resynchronization and will be re-imported.")
+        print(f"{len(hashes_to_remove_from_db)} documents will be removed, {len(hashes_to_keep_in_db)} documents "
+              f"will be kept, and {len(hashes_to_upload)} new documents will be added.")
 
         # Remove documents that are no longer in the source of truth
-        hashes_to_remove = db_hashes - unchanged_hashes
-        if hashes_to_remove:
-            print(f"{len(hashes_to_remove)} documents are no longer in the source of truth and will be removed...")
-            for hash in hashes_to_remove:
+        if hashes_to_remove_from_db:
+            for hash in hashes_to_remove_from_db:
                 self._remove_by_hash(hash)
 
         # Add new documents from the source of truth
-        new_hashes = truth_docs_by_hash.keys() - db_hashes
-        new_documents = [truth_docs_by_hash[hash] for hash in new_hashes]
-        print(f"{len(new_documents)} documents are new/updated and will be imported into the vector database.")
+        documents_to_upload = [truth_docs_by_hash[hash] for hash in hashes_to_upload]
         successes = 0
         fails = 0
-        for i, document in enumerate(new_documents):
-            progress = f"({i + 1}/{len(new_documents)})"
-            print(f"{progress} Chunking document '{document.file_path}'... ", end="\r")
+        for i, document in enumerate(documents_to_upload):
+            progress = f"{i + 1}/{len(documents_to_upload)}"
+            print(f"({progress}) Chunking document '{document.file_path}'... ", end="\r")
             try:
                 chunk_start = time.time()
                 chunks = document.chunk()
@@ -121,7 +129,7 @@ class MainData:
                 document.update_sync_status(False)
                 fails += 1
                 continue
-            print(f"{progress} Chunked document '{document.file_path}' into {len(chunks)} chunks (done in {chunk_time}).")
+            print(f"({progress}) Chunked document '{document.file_path}' into {len(chunks)} chunks (done in {chunk_time}).")
             try:
                 self._import_chunks(chunks)
                 document.update_sync_status(True)
@@ -132,8 +140,8 @@ class MainData:
                 document.update_sync_status(False)
                 fails += 1
         total_time = elapsed(start)
-        print(f"Successfully synchronized {len(unchanged_hashes) + successes} documents, {successes} new, "
-              f"{fails} failed (done in {total_time}).")
+        print(f"Of the {len(documents_to_upload)} documents to upload, {successes} succeeded and {fails} failed.")
+        print(f"Synchronized vector database with source of truth in {total_time}.")
 
     def search(
         self,

@@ -12,6 +12,7 @@ class SyncStatus(str, Enum):
     NOT_YET_SYNCED = "Not Yet Synced"
     SYNCED = "Synced"
     COULD_NOT_SYNC = "Could Not Sync"
+    MARKED_FOR_RESYNC = "Marked For Resync"
 
 
 class SharepointDocument:
@@ -26,8 +27,9 @@ class SharepointDocument:
     SYNC_STATUS = "SyncStatus"
 
     """
-    Represents a document that has not been chunked yet.
-    This is more of a conceptual class than a practical one, as it shares all the same properties as a Chunk.
+    Represents a document in SharePoint which has been downloaded onto the local file system.
+    Contains the file path and the SharePoint item.
+    Offers methods to hash the document, create chunks, and update the sync status in SharePoint.
     """
     file_path: str
     item: SharepointListItem
@@ -98,17 +100,18 @@ class SharepointDocument:
         ]
         return chunks
 
-    def update_sync_status(self, status: bool | None):
+    def is_marked_for_resync(self) -> bool:
+        """
+        Whether the document is marked for resynchronization.
+        """
+        return self.item.fields[SharepointDocument.SYNC_STATUS] == SyncStatus.MARKED_FOR_RESYNC
+
+    def update_sync_status(self, status: bool):
         """
         Update the sync status of the document in SharePoint.
-        :param status: Success or failure, or None to set it to "Not Yet Synced"
+        :param status: Whether the document was successfully synced
         """
-        if status is None:
-            self.item.update_fields({SharepointDocument.SYNC_STATUS: SyncStatus.NOT_YET_SYNCED})
-        elif status:
-            self.item.update_fields({SharepointDocument.SYNC_STATUS: SyncStatus.SYNCED})
-        else:
-            self.item.update_fields({SharepointDocument.SYNC_STATUS: SyncStatus.COULD_NOT_SYNC})
+        self.item.update_fields({SharepointDocument.SYNC_STATUS: SyncStatus.SYNCED if status else SyncStatus.COULD_NOT_SYNC})
         self.item.save_updates()
 
     def delete(self):
