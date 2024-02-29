@@ -1,4 +1,5 @@
 import time
+import traceback
 
 import weaviate.classes as wvc
 
@@ -47,18 +48,15 @@ class MainData:
             hashes.add(obj.properties[Chunk.HASH])
         return hashes
 
-    def _remove_by_hashes(self, hashes: set[str]):
+    def _remove_by_hash(self, hash: str):
         """
         Remove documents from Weaviate by their hashes.
-        :param hashes: The hashes of the documents to remove
+        :param hash: The hashes of the documents to remove
         """
-        print(f"{len(hashes)} documents are no longer in the source of truth and will be removed from Weaviate...")
         result = self.collection.data.delete_many(
-            where=wvc.query.Filter.by_property(Chunk.HASH).contains_any(
-                list(hashes)
-            )
+            where=wvc.query.Filter.by_property(Chunk.HASH).equal(hash)
         )
-        print(f"Successfully removed {result.successful} documents, {result.failed} failed.")
+        print(f"Successfully removed {result.successful} chunks with hash '{hash}', {result.failed} failed.")
 
     def _import_chunks(self, chunks: list[Chunk]):
         """
@@ -76,7 +74,7 @@ class MainData:
             raise Exception(f"Failed to upload {batch.number_errors} chunks.")
         print(f"Uploaded {len(chunks)} chunks (done in {upload_time}).")
 
-    def synchronize(self, documents: list[SharepointDocument]) -> (list[SharepointDocument], list[SharepointDocument]):
+    def synchronize(self, documents: list[SharepointDocument]):
         """
         Synchronize the database with the provided LocalDocuments as the source of truth.
         This will add new documents to the database that are not already in it,
@@ -88,6 +86,7 @@ class MainData:
         :return: A tuple of two lists: the first list contains the documents that were successfully added/updated,
         the second list contains the documents that failed to be added/updated
         """
+        print("Fetching current state of vector database...")
         start = time.time()
         # Fetch the current hashes from Weaviate
         db_hashes = self._fetch_distinct_hashes()
@@ -99,14 +98,16 @@ class MainData:
         # Remove documents that are no longer in the source of truth
         hashes_to_remove = db_hashes - unchanged_hashes
         if hashes_to_remove:
-            self._remove_by_hashes(hashes_to_remove)
+            print(f"{len(hashes_to_remove)} documents are no longer in the source of truth and will be removed...")
+            for hash in hashes_to_remove:
+                self._remove_by_hash(hash)
 
         # Add new documents from the source of truth
         new_hashes = truth_docs_by_hash.keys() - db_hashes
         new_documents = [truth_docs_by_hash[hash] for hash in new_hashes]
         print(f"{len(new_documents)} documents are new/updated and will be imported into the vector database.")
-        synced = [truth_docs_by_hash[hash] for hash in unchanged_hashes]
-        failures = []
+        successes = 0
+        fails = 0
         for i, document in enumerate(new_documents):
             progress = f"({i + 1}/{len(new_documents)})"
             print(f"{progress} Chunking document '{document.file_path}'... ", end="\r")
@@ -116,20 +117,23 @@ class MainData:
                 chunk_time = elapsed(chunk_start)
             except Exception as e:
                 print(f"Error while chunking {document.file_path}: {e}")
-                print(f"Stack trace: {str(e.__traceback__)}")
-                failures.append(document)
+                traceback.print_exc()
+                document.update_sync_status(False)
+                fails += 1
                 continue
             print(f"{progress} Chunked document '{document.file_path}' into {len(chunks)} chunks (done in {chunk_time}).")
             try:
                 self._import_chunks(chunks)
-                synced.append(document)
+                document.update_sync_status(True)
+                successes += 1
             except Exception as e:
                 print(f"Error while uploading chunks of {document.file_path}: {e}")
-                failures.append(document)
+                traceback.print_exc()
+                document.update_sync_status(False)
+                fails += 1
         total_time = elapsed(start)
-        print(f"Successfully synchronized {len(synced)} documents, {len(new_documents) - len(failures)} new, "
-              f"{len(failures)} failed (done in {total_time}).")
-        return synced, failures
+        print(f"Successfully synchronized {len(unchanged_hashes) + successes} documents, {successes} new, "
+              f"{fails} failed (done in {total_time}).")
 
     def search(
         self,
