@@ -12,6 +12,7 @@ from application.backend.datastore.main_data.sharepoint_document import Sharepoi
 
 load_dotenv()
 
+DOWNLOAD_CHUNK_SIZE = 8 * 1024
 DATA_FOLDER = "/Data_ChatBot"
 TEMP_DIR = "sharepoint_temp"
 
@@ -95,9 +96,9 @@ def load_from_sharepoint() -> list[SharepointDocument]:
         if index == -1:
             continue
         file_path = url[index + len(DATA_FOLDER):]
-        downloadable_file = downloadable_files.pop(file_path, None)
-        if downloadable_file is None:
+        if file_path not in downloadable_files:
             continue
+        file = downloadable_files.pop(file_path)
         download_path = f"{TEMP_DIR}{file_path}"
         progress = f"{total_files - len(downloadable_files)}/{total_files}"
         if os.path.isfile(download_path):
@@ -108,7 +109,7 @@ def load_from_sharepoint() -> list[SharepointDocument]:
             os.makedirs(download_folder, exist_ok=True)
             print(f"({progress}) Downloading {file_path}...", end="\r")
             download_start = time.time()
-            downloadable_files.pop(file_path).download(to_path=download_folder, chunk_size=8 * 1024)
+            file.download(to_path=download_folder, chunk_size=DOWNLOAD_CHUNK_SIZE)
             download_duration = elapsed(download_start)
             print(f"({progress}) Downloading {file_path}... (done in {download_duration})")
             downloaded += 1
