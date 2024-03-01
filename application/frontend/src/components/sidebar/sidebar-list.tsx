@@ -7,6 +7,7 @@ import { Chat } from "@/lib/types";
 import { IconSettings } from "../icons";
 import { Button } from "../ui/button";
 import { startTransition } from "react";
+import { SettingsDialog } from "../settings-dialog";
 
 export async function SidebarList() {
   const [chats, _] = useLocalStorage<Chat[]>("chats", []);
@@ -28,9 +29,7 @@ export async function SidebarList() {
           <div className="w-8 h-8 rounded-full bg-slate-300" />
           <span className="text-sm font-medium">TUM User</span>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => null}>
-          <IconSettings />
-        </Button>
+        <SettingsDialog />
       </div>
     </div>
   );
