@@ -26,7 +26,7 @@ export default function RootLayout({
         >
           <div className="flex flex-col min-h-screen bg-[#1A3048]">
             <Header />
-            <main className="flex flex-col flex-1 bg-white m-2.5 rounded-lg">
+            <main className="flex flex-col flex-1 bg-white m-2 rounded-lg">
               {children}
             </main>
           </div>
