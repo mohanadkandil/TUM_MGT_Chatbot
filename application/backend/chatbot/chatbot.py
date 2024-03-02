@@ -4,17 +4,13 @@ import logging
 import uuid
 import os
 from operator import itemgetter
-import weaviate
-from langchain_openai import ChatOpenAI
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import AzureChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 from langchain.schema import StrOutputParser, Document, format_document
 from dotenv import find_dotenv, load_dotenv
 from application.backend.datastore.db import ChatbotVectorDatabase
-from langchain_community.vectorstores import Weaviate
-from langchain_openai import OpenAIEmbeddings
 from pydantic import BaseModel, Field
 from langchain.schema import Document
 from application.backend.chatbot.history import PostgresChatMessageHistory
@@ -26,6 +22,8 @@ os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
 os.environ["LANGCHAIN_API_KEY"] = "ls__57d4de111e7247f5b3559f13e8650ea8"
 os.environ["LANGCHAIN_PROJECT"] = "MGTChatbot"
 
+openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 
 class Message(BaseModel):
     role: str
@@ -57,10 +55,11 @@ class Chatbot:
         :return: The chatbot's answer
         """
 
-        llm = ChatOpenAI(
-            model_name="gpt-3.5-turbo",
-            temperature=0,
-            api_key=os.getenv("OPENAI_API_KEY"),
+        llm = AzureChatOpenAI(
+            openai_api_version="2023-05-15",
+            deployment_name="ChatbotMGT",
+            azure_endpoint=azure_endpoint,
+            openai_api_key=openai_api_key,
         )
 
         condense_question_template = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.
