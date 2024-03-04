@@ -12,6 +12,7 @@ import Textarea from "react-textarea-autosize";
 import { IconPlus, IconSend } from "./icons";
 import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useToast } from "./ui/use-toast";
 import { Message } from "@/lib/types";
 
 export interface PormptProps
@@ -31,6 +32,7 @@ export function Chat() {
   const [previewTokenInput, setPreviewTokenInput] = useState(
     previewToken ?? ""
   );
+  const { toast } = useToast();
 
   const { formRef, onKeyDown } = useEnterSubmit();
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -78,7 +80,6 @@ export function Chat() {
       const data = await response.json();
       console.log("Success:", data);
       const newMessage: Message = {
-
         id: Date.now().toString(),
         content: data.answer.answer,
         role: "system", // or 'system', directly using the string literal
@@ -87,6 +88,12 @@ export function Chat() {
       isLoadingRef.current = false;
       // Handle success response here, such as updating UI or state accordingly
     } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem with your request.",
+      });
+      isLoadingRef.current = false;
       console.error("Error submitting question:", error);
       // Handle error scenario, such as displaying an error message to the user
     }
