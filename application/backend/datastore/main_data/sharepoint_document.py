@@ -4,6 +4,7 @@ from enum import Enum
 
 from O365.sharepoint import SharepointListItem
 from langchain_community.document_loaders import UnstructuredFileLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from application.backend.datastore.main_data.main_schema import Chunk
 
@@ -76,28 +77,69 @@ class SharepointDocument:
     def chunk(self) -> list[Chunk]:
         """
         Use Unstructured to turn a SharepointDocument into chunks, which can then be batch imported into Weaviate.
+        Use different splitting strategies based on the document type:
+        - For PDFs: Load the document as a single large chunk and then use RecursiveCharacterTextSplitter.
+        - For other types: Use UnstructuredFileLoader with mode="elements".
         """
-        splitter = UnstructuredFileLoader(
-            file_path=self.file_path,
-            mode="elements",
-            strategy="fast"
-        )
-        chunks = [
-            Chunk(
-                text=chunk.page_content,  # The text content of the chunk
-                faculty=self.item.fields[SharepointDocument.FACULTY],
-                target_groups=self.item.fields[SharepointDocument.TARGET_GROUPS],
-                topic=self.item.fields[SharepointDocument.TOPIC],
-                subtopic=self.item.fields[SharepointDocument.SUBTOPIC],
-                title=self.item.fields[SharepointDocument.TITLE],
-                degree_programs=self.item.fields[SharepointDocument.DEGREE_PROGRAMS],
-                languages=self.item.fields[SharepointDocument.LANGUAGES],
-                hash=self.hash,  # Every chunk from the same document will have the same hash
-                url=self.item.web_url,
-                hits=0,
+
+        is_pdf = self.file_path.endswith(".pdf")
+
+        if is_pdf:
+            unstructured_splitter = UnstructuredFileLoader(
+                file_path=self.file_path,
+                strategy="fast"
             )
-            for chunk in splitter.load()
-        ]
+        else:
+            unstructured_splitter = UnstructuredFileLoader(
+                file_path=self.file_path,
+                mode="elements",
+                strategy="fast"
+            )
+
+        loaded_doc = unstructured_splitter.load()
+
+        if is_pdf:
+            text_to_split = loaded_doc[0].page_content
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=100,
+                chunk_overlap=20,
+            )
+            split_texts = text_splitter.split(text_to_split)
+
+            chunks = [
+                Chunk(
+                    text=split_text,  # The text content of the chunk
+                    faculty=self.item.fields[SharepointDocument.FACULTY],
+                    target_groups=self.item.fields[SharepointDocument.TARGET_GROUPS],
+                    topic=self.item.fields[SharepointDocument.TOPIC],
+                    subtopic=self.item.fields[SharepointDocument.SUBTOPIC],
+                    title=self.item.fields[SharepointDocument.TITLE],
+                    degree_programs=self.item.fields[SharepointDocument.DEGREE_PROGRAMS],
+                    languages=self.item.fields[SharepointDocument.LANGUAGES],
+                    hash=self.hash,  # Every chunk from the same document will have the same hash
+                    url=self.item.web_url,
+                    hits=0,
+                )
+                for split_text in split_texts
+            ]
+        else:
+            chunks = [
+                Chunk(
+                    text=chunk.page_content,  # The text content of the chunk
+                    faculty=self.item.fields[SharepointDocument.FACULTY],
+                    target_groups=self.item.fields[SharepointDocument.TARGET_GROUPS],
+                    topic=self.item.fields[SharepointDocument.TOPIC],
+                    subtopic=self.item.fields[SharepointDocument.SUBTOPIC],
+                    title=self.item.fields[SharepointDocument.TITLE],
+                    degree_programs=self.item.fields[SharepointDocument.DEGREE_PROGRAMS],
+                    languages=self.item.fields[SharepointDocument.LANGUAGES],
+                    hash=self.hash,  # Every chunk from the same document will have the same hash
+                    url=self.item.web_url,
+                    hits=0,
+                )
+                for chunk in loaded_doc
+            ]
+            
         return chunks
 
     def is_marked_for_resync(self) -> bool:

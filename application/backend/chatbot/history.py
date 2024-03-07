@@ -5,9 +5,9 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg import sql
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-load_dotenv()
+load_dotenv(find_dotenv())
 
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import (
@@ -20,13 +20,10 @@ host = "som-postgres.postgres.database.azure.com"
 dbname = "postgres"
 user = os.environ.get("POSTGRES_USER")
 password = os.environ.get("POSTGRES_PASSWORD")
-# sslmode = "require"
-
-DEFAULT_CONNECTION_STRING = "postgresql://postgres:admin@localhost/testdb"
 
 conn_string = "host={0} user={1} dbname={2} password={3}".format(
     host, user, dbname, password
-)  # sslmode can be added
+)
 
 
 class PostgresChatMessageHistory(BaseChatMessageHistory):

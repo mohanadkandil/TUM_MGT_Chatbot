@@ -1,10 +1,10 @@
 import enum
 from langchain.chat_models import ChatOpenAI
 from langchain.schema.messages import SystemMessage
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import os
 
-load_dotenv()
+load_dotenv(find_dotenv())
 
 chat = ChatOpenAI(
     model_name="gpt-3.5-turbo-16k",

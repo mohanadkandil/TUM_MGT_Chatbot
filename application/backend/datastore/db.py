@@ -7,7 +7,6 @@ from application.backend.datastore.main_data.main_data import MainData
 
 load_dotenv(find_dotenv())
 
-
 class ChatbotVectorDatabase:
     """
     This class is responsible for managing the vector database of the chatbot, and should be used as a singleton.
