@@ -54,7 +54,7 @@ export function Chat() {
     setInput("");
 
     const encodedQuestion = encodeURIComponent(input);
-    const url = `${process.env.NEXT_PUBLIC_CONVERSATIONAPI}?question=${encodedQuestion}`;
+    const url = `https://copilot-tum-mgt.de/conversation?question=${encodedQuestion}`;
 
     try {
       const response = await fetch(url, {
