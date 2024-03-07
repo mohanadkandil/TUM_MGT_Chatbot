@@ -54,7 +54,7 @@ export function Chat() {
     setInput("");
 
     const encodedQuestion = encodeURIComponent(input);
-    const url = `http://64.227.113.135:8000/conversation?question=${encodedQuestion}`;
+    const url = `${process.env.NEXT_PUBLIC_CONVERSATIONAPI}?question=${encodedQuestion}`;
 
     try {
       const response = await fetch(url, {
