@@ -10,7 +10,7 @@ export async function SidebarList() {
 
   // Convert chats object into an array of chat objects
   const chatsArray = Object.keys(chats).map((key) => ({
-    id: key,
+    chatId: key, // Renamed to avoid conflict
     ...chats[key],
   }));
 

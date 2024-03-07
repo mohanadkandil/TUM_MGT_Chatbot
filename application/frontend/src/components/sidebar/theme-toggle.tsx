@@ -1,9 +1,7 @@
 "use client";
 
-import { useTheme } from "next-themes";
 import * as React from "react";
-import { Button } from "../ui/button";
-import { IconMoon, IconSun } from "../icons";
+import { useTheme } from "next-themes";
 import { Switch } from "../ui/switch";
 
 export function ThemeToggle() {

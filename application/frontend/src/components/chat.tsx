@@ -5,7 +5,6 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { ChatList } from "./chat-list";
-import { EmptyScreen } from "./empty-screen";
 import { QuestionsRecommendation } from "./questions-recommendation";
 import { ButtonScrollToBottom } from "./button-scroll-to-bottom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -39,16 +38,13 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     previewToken ?? ""
   );
   const { toast } = useToast();
-  // const [cachedMessages, setCachedMessages] = useLocalStorage<
-  //   Record<string, Message[]>
-  // >("chats", {});
-
   const { formRef, onKeyDown } = useEnterSubmit();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState<string>("");
   const isLoadingRef = useRef(false);
+  const initialMessagesRef = useRef(initialMessages);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -64,7 +60,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     setInput("");
 
     const encodedQuestion = encodeURIComponent(input);
-    const url = `http://64.227.113.135:8000/conversation?question=${encodedQuestion}`;
+    const url = `https://copilot-tum-mgt.de/conversation?question=${encodedQuestion}`;
 
     try {
       const response = await fetch(url, {
@@ -109,18 +105,31 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     }
   };
 
-  const addNewMessageToChats = (newMessage, chatId) => {
+  const addNewMessageToChats = (
+    newMessage: Message,
+    chatId: string | number | undefined
+  ) => {
     const chats = JSON.parse(localStorage.getItem("chats") || "{}");
-    const chatMessages = chats[chatId] || [];
-    chatMessages.push(newMessage);
-    chats[chatId] = chatMessages;
+    if (chatId) {
+      const chatMessages = chats[chatId] || [];
+      chatMessages.push(newMessage);
+      chats[chatId] = chatMessages;
+    }
     localStorage.setItem("chats", JSON.stringify(chats));
   };
 
   console.log("Messages ", messages);
+
   useEffect(() => {
-    setMessages(initialMessages);
+    if (
+      JSON.stringify(initialMessages) !==
+      JSON.stringify(initialMessagesRef.current)
+    ) {
+      setMessages(initialMessages);
+      initialMessagesRef.current = initialMessages;
+    }
   }, [initialMessages]);
+
   return (
     <>
       <div className={cn("pb-[200px] pt-4 md:pt-10")}>

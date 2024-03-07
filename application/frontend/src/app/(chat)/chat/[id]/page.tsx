@@ -23,7 +23,5 @@ export default function ChatPage({ params }: ChatPageProps) {
     }
   }, [id]);
 
-  console.log(chat.messages);
-
   return <Chat id={chat.id} initialMessages={chat.messages} />;
 }
