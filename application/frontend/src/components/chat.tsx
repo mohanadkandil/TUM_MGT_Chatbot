@@ -1,6 +1,7 @@
+"use client";
 import { cn } from "@/lib/utils";
 import { UseChatHelpers } from "ai/react";
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { ChatList } from "./chat-list";
@@ -15,13 +16,18 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "./ui/use-toast";
 import { Message } from "@/lib/types";
 
+export interface ChatProps extends React.ComponentProps<"div"> {
+  initialMessages?: Message[];
+  id?: string;
+}
+
 export interface PormptProps
   extends Pick<UseChatHelpers, "input" | "setInput"> {
   onSubmit: (value: string) => void;
   isLoading: boolean;
 }
 
-export function Chat() {
+export function Chat({ id, initialMessages = [] }: ChatProps) {
   const path = usePathname();
   const [previewToken, setPreviewToken] = useLocalStorage<string | null>(
     "ai-token",
@@ -33,11 +39,14 @@ export function Chat() {
     previewToken ?? ""
   );
   const { toast } = useToast();
+  // const [cachedMessages, setCachedMessages] = useLocalStorage<
+  //   Record<string, Message[]>
+  // >("chats", {});
 
   const { formRef, onKeyDown } = useEnterSubmit();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState<string>("");
   const isLoadingRef = useRef(false);
 
@@ -51,6 +60,7 @@ export function Chat() {
     };
     isLoadingRef.current = true;
     setMessages((prevMessages) => [...prevMessages, newMessage]);
+    addNewMessageToChats(newMessage, id);
     setInput("");
 
     const encodedQuestion = encodeURIComponent(input);
@@ -78,13 +88,13 @@ export function Chat() {
       }
 
       const data = await response.json();
-      console.log("Success:", data);
       const newMessage: Message = {
         id: Date.now().toString(),
         content: data.answer.answer,
         role: "system", // or 'system', directly using the string literal
       };
       setMessages((prevMessages) => [...prevMessages, newMessage]);
+      addNewMessageToChats(newMessage, id);
       isLoadingRef.current = false;
       // Handle success response here, such as updating UI or state accordingly
     } catch (error) {
@@ -98,6 +108,19 @@ export function Chat() {
       // Handle error scenario, such as displaying an error message to the user
     }
   };
+
+  const addNewMessageToChats = (newMessage, chatId) => {
+    const chats = JSON.parse(localStorage.getItem("chats") || "{}");
+    const chatMessages = chats[chatId] || [];
+    chatMessages.push(newMessage);
+    chats[chatId] = chatMessages;
+    localStorage.setItem("chats", JSON.stringify(chats));
+  };
+
+  console.log("Messages ", messages);
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages]);
   return (
     <>
       <div className={cn("pb-[200px] pt-4 md:pt-10")}>

@@ -2,21 +2,26 @@
 
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { SidebarItems } from "./sidebar-items";
-import { ThemeToggle } from "./theme-toggle";
 import { Chat } from "@/lib/types";
-import { IconSettings } from "../icons";
-import { Button } from "../ui/button";
-import { startTransition } from "react";
 import { SettingsDialog } from "../settings-dialog";
 
 export async function SidebarList() {
-  const [chats, _] = useLocalStorage<Chat[]>("chats", []);
+  const [chats, _] = useLocalStorage<Record<string, Chat>>("chats", {});
+
+  // Convert chats object into an array of chat objects
+  const chatsArray = Object.keys(chats).map((key) => ({
+    id: key,
+    ...chats[key],
+  }));
+
+  // Now, pass chatsArray to SidebarItems
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="flex-1 overflow-auto">
-        {chats?.length ? (
+        {chatsArray?.length ? (
           <div className="space-y-2 px-2">
-            <SidebarItems chats={chats} />
+            <SidebarItems chats={chatsArray} />
           </div>
         ) : (
           <div className="p-8 text-center">

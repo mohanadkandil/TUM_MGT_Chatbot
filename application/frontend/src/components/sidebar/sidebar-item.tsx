@@ -31,8 +31,7 @@ export function SidebarItem({ index, chat, children }: SidebarItemProps) {
   const [newChatId, setNewChatId] = useLocalStorage("newChatId", null);
   const shouldAnimate = index === 0 && isActive && newChatId;
 
-  if (!chat?.id) return null;
-
+  // if (!chat?.id) return null;
   return (
     <motion.div
       className="relative h-8"
@@ -69,7 +68,7 @@ export function SidebarItem({ index, chat, children }: SidebarItemProps) {
         )}
       </div>
       <Link
-        href={chat.path}
+        href={`${chat.id}`}
         className={cn(
           buttonVariants({ variant: "ghost" }),
           "group w-full px-8 transition-colors hover:bg-zinc-200/40 dark:hover:bg-zinc-300/10",
@@ -77,7 +76,7 @@ export function SidebarItem({ index, chat, children }: SidebarItemProps) {
         )}
       >
         <div
-          className="relative max-h-5 flex-1 select-none overflow-hidden text-ellipsis break-all"
+          className="relative max-h-5 flex-1 select-none overflow-hidden text-ellipsis break-all mb-5"
           title={chat.title}
         >
           <span className="whitespace-nowrap">
@@ -113,7 +112,7 @@ export function SidebarItem({ index, chat, children }: SidebarItemProps) {
                 </motion.span>
               ))
             ) : (
-              <span>{chat.title}</span>
+              <span>{chat[0].content}</span>
             )}
           </span>
         </div>
