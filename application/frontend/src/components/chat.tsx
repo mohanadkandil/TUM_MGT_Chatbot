@@ -137,7 +137,7 @@ export function Chat() {
         </div>
         <div className="mx-auto sm:max-w-2xl sm:px-4">
           <div className="px-4 py-2 space-y-4 md:py-4">
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} ref={formRef}>
               <div className="relative flex flex-col w-full px-8 overflow-hidden max-h-60 grow bg-background sm:border sm:rounded-2xl sm:px-12">
                 <Tooltip>
                   <TooltipTrigger asChild>
