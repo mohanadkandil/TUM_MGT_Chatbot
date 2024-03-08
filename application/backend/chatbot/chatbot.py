@@ -118,9 +118,11 @@ class Chatbot:
         parsed_response = json_parser.parse(response.content)
 
         if not parsed_response.get('is_tum', True):
-            return "I'm sorry, I can't answer that question. Please ask me about TUM School of Management."
+            answer = "I'm sorry, I can't answer that question. Please ask me about TUM School of Management."
+            return {"answer": answer, "session_id": self.postgres_history.session_id}
         elif parsed_response.get('is_sensitive', False):
-            return "I'm sorry, I can't answer that question. Make sure to not include any sensitive data in your inquiry or contact the SOM directly."
+            answer = "I'm sorry, I can't answer that question. Make sure to not include any sensitive data in your inquiry or contact the SOM directly."
+            return {"answer": answer, "session_id": self.postgres_history.session_id}
         else:
             pass
 
