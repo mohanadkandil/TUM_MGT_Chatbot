@@ -101,7 +101,7 @@ class SharepointDocument:
         if is_pdf:
             text_to_split = loaded_doc[0].page_content
             text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=100,
+                chunk_size=1000,
                 chunk_overlap=20,
             )
             split_texts = text_splitter.split(text_to_split)
