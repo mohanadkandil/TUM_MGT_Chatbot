@@ -3,17 +3,19 @@ import requests
 import logging
 import uuid
 import os
+from typing import List
 from operator import itemgetter
 from langchain_openai import AzureChatOpenAI
 from langchain.prompts import PromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 from langchain.schema import StrOutputParser, Document, format_document
 from dotenv import find_dotenv, load_dotenv
-from application.backend.datastore.db import ChatbotVectorDatabase
+from ..datastore.db import ChatbotVectorDatabase
 from pydantic import BaseModel, Field
 from langchain.schema import Document
-from application.backend.chatbot.history import PostgresChatMessageHistory
+from .history import PostgresChatMessageHistory
 
 load_dotenv(find_dotenv())
 
@@ -62,7 +64,26 @@ class Chatbot:
             openai_api_key=openai_api_key,
         )
 
-        condense_question_template = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.
+        first_filter_template = """
+        You're given a question and need to decide 2 things about it:
+        1. If the question is about the Technical University of Munich, especially about the School of Management, add "is_tum: true" to the JSON. Otherwise, add "is_tum: false".
+        2. Assess if the question has an inherently super sensitive topic. If it does, add "is_sensitive: true" to the JSON. Otherwise, add "is_sensitive: false".
+
+        Your output should be strictly in JSON format with the following keys:
+        
+            "is_tum": boolean,
+            "is_sensitive": boolean
+        
+        Chat History:
+        {chat_history}
+        Follow Up Input: {question}
+        
+        JSON Output:
+        """
+
+        FIRST_FILTER_PROMPT = PromptTemplate.from_template(first_filter_template)
+
+        condense_question_template = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, and produce an answer to the best of your knowledge about the Technical University of Munich in its original language.
         Chat History:
         {chat_history}
         Follow Up Input: {question}
@@ -90,6 +111,20 @@ class Chatbot:
             doc_strings = [format_document(doc, document_prompt) for doc in docs]
             return document_separator.join(doc_strings)
 
+
+        json_parser = JsonOutputParser()
+        filter_prompt = FIRST_FILTER_PROMPT.format(chat_history=conversation.conversation, question=question)
+        response = llm.invoke(filter_prompt)
+        parsed_response = json_parser.parse(response.content)
+
+        if not parsed_response.get('is_tum', True):
+            return "I'm sorry, I can't answer that question. Please ask me about TUM School of Management."
+        elif parsed_response.get('is_sensitive', False):
+            return "I'm sorry, I can't answer that question. Make sure to not include any sensitive data in your inquiry or contact the SOM directly."
+        else:
+            pass
+
+
         _inputs = RunnableParallel(
             standalone_question=RunnablePassthrough.assign(
                 chat_history=lambda x: self._format_chat_history(x["chat_history"])
@@ -111,6 +146,7 @@ class Chatbot:
             "question": itemgetter("standalone_question"),
         }
         print(_context)
+
         conversational_qa_chain = (
             _inputs | _context | ANSWER_PROMPT | llm | StrOutputParser()
         )
