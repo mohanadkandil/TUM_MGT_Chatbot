@@ -2,6 +2,7 @@ import { type Message } from "ai";
 
 import { Separator } from "./ui/separator";
 import { ChatMessage } from "./chat-message";
+import { ChatFeedback } from "./chat-feedback";
 
 export interface ChatList {
   messages: Message[];
@@ -14,6 +15,7 @@ export function ChatList({ messages }: ChatList) {
       {messages.map((message, index) => (
         <div key={index}>
           <ChatMessage message={message} />
+          {message.role == "system" ? <ChatFeedback /> : null}
           {index < messages.length - 1 && (
             <Separator className="my-4 md:my-8" />
           )}
