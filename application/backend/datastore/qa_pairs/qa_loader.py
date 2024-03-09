@@ -3,7 +3,7 @@ from psycopg2 import sql
 import os
 import csv
 from dotenv import load_dotenv, find_dotenv
-import random
+#import random
 
 load_dotenv(find_dotenv())
 
@@ -21,6 +21,7 @@ csv_file_path='cleaned_questions_answers.csv'
 
 class PostgresLoader:
     """Class to load CSV data into a Postgres database."""
+    """Class to get data from a Postgres database based on study program and language."""
 
     def __init__(self, csv_file_path: str = "", table_name: str = "qa_pairs"):
         self.csv_file_path = csv_file_path
@@ -71,7 +72,8 @@ class PostgresLoader:
         if self.connection:
             self.connection.close()
 
-if __name__ == "__main__":
+
+""" if __name__ == "__main__":
 
     language = "English"
     degree_program = "BMT"
@@ -87,4 +89,4 @@ if __name__ == "__main__":
     print("-----------------")
     print(few_shot_questions)
 
-    postgres_qa.close_connection()
+    postgres_qa.close_connection() """

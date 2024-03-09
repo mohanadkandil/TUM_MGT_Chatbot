@@ -56,7 +56,7 @@ class Chatbot:
         Chat with the chatbot
         :param question: The question to ask the chatbot
         :param chat_history: The chat history
-        :return: The chatbot's answer
+        :return: The chatbot's answer and the session id
         """
 
         llm = AzureChatOpenAI(
@@ -68,6 +68,7 @@ class Chatbot:
 
         first_filter_template = """
         You're given a question and need to decide 3 things about it:
+
         1. If the question is about the Technical University of Munich, especially about the School of Management, add "is_tum: true" to the JSON. Otherwise, add "is_tum: false".
         2. Assess if the question has an inherently super sensitive topic. If it does, add "is_sensitive: true" to the JSON. Otherwise, add "is_sensitive: false".
         3. Assess the question's language. If it's in English, add "language: English" to the JSON. If it's in German, add "language: German" to the JSON.
@@ -78,20 +79,25 @@ class Chatbot:
             "is_sensitive": boolean,
             "language": string
         
-        Chat History:
-        {chat_history}
-        Follow Up Input: {question}
+        Question:
+        {question}
         
         JSON Output:
         """
 
         FIRST_FILTER_PROMPT = PromptTemplate.from_template(first_filter_template)
 
-        condense_question_template = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, and produce an answer to the best of your knowledge about the Technical University of Munich in its original language.
-        Chat History:
+        condense_question_template = """Given the following chat history and a follow up question, rephrase the follow up question to be a standalone question, and produce an answer to the best of your knowledge about the Technical University of Munich. Use the same language as the follow up question.
+        <chat_history>
         {chat_history}
-        Follow Up Input: {question}
+        </chat_history>
+
+        <Follow up question>
+        {question}
+        </Follow up question>
+
         Standalone question:"""
+
         CONDENSE_QUESTION_PROMPT = PromptTemplate.from_template(
             condense_question_template
         )
@@ -126,7 +132,7 @@ class Chatbot:
 
 
         json_parser = JsonOutputParser()
-        filter_prompt = FIRST_FILTER_PROMPT.format(chat_history=conversation.conversation, question=question)
+        filter_prompt = FIRST_FILTER_PROMPT.format(question=question)
         response = llm.invoke(filter_prompt)
         parsed_response = json_parser.parse(response.content)
 
