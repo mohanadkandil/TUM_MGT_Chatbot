@@ -120,6 +120,27 @@ class Chatbot:
         """
         ANSWER_PROMPT = ChatPromptTemplate.from_template(answer_template)
 
+        feedback_trigger_query = """
+        Provide a json object with one key-value pair as follows:
+        {
+            "trigger_feedback": boolean
+        }
+
+        Base your decision on the quality of the answer to a user query.
+        If the user's question is sufficiently answered, set "trigger_feedback" to true.
+        Otherwise, set "trigger_feedback" to false.
+
+        <User question>
+        {question}
+        </User question>
+
+        <Answer>
+        {answer}
+        </Answer>
+        """
+
+        FEEDBACK_TRIGGER_PROMPT = PromptTemplate.from_template(feedback_trigger_query)
+
         DEFAULT_DOCUMENT_PROMPT = PromptTemplate.from_template(
             template="{page_content}"
         )
@@ -193,6 +214,14 @@ class Chatbot:
 
         self.postgres_history.add_user_message(question)
         self.postgres_history.add_ai_message(answer)
+
+        feedback_prompt = FEEDBACK_TRIGGER_PROMPT.format(question=question, answer=answer)
+        response = llm.invoke(feedback_prompt)
+        feedback_trigger = json_parser.parse(response.content)
+
+        # to-do: pass feedback_trigger to frontend, create api endpoint to store feedback
+        if feedback_trigger.get("trigger_feedback", False):
+            print("Feedback triggered")
 
         return {"answer": answer, "session_id": self.postgres_history.session_id}
 
