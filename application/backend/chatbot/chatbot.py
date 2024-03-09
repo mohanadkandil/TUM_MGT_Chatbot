@@ -3,6 +3,7 @@ import requests
 import logging
 import uuid
 import os
+import random
 from typing import List
 from operator import itemgetter
 from langchain_openai import AzureChatOpenAI
@@ -12,10 +13,11 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 from langchain.schema import StrOutputParser, Document, format_document
 from dotenv import find_dotenv, load_dotenv
-from ..datastore.db import ChatbotVectorDatabase
+from application.backend.datastore.db import ChatbotVectorDatabase
 from pydantic import BaseModel, Field
 from langchain.schema import Document
-from .history import PostgresChatMessageHistory
+from application.backend.chatbot.history import PostgresChatMessageHistory
+from application.backend.datastore.qa_pairs.qa_loader import PostgresLoader
 
 load_dotenv(find_dotenv())
 
@@ -65,14 +67,16 @@ class Chatbot:
         )
 
         first_filter_template = """
-        You're given a question and need to decide 2 things about it:
+        You're given a question and need to decide 3 things about it:
         1. If the question is about the Technical University of Munich, especially about the School of Management, add "is_tum: true" to the JSON. Otherwise, add "is_tum: false".
         2. Assess if the question has an inherently super sensitive topic. If it does, add "is_sensitive: true" to the JSON. Otherwise, add "is_sensitive: false".
+        3. Assess the question's language. If it's in English, add "language: English" to the JSON. If it's in German, add "language: German" to the JSON.
 
         Your output should be strictly in JSON format with the following keys:
         
             "is_tum": boolean,
-            "is_sensitive": boolean
+            "is_sensitive": boolean,
+            "language": string
         
         Chat History:
         {chat_history}
@@ -93,11 +97,20 @@ class Chatbot:
         )
 
         answer_template = """Answer the question based only on the following context:
+        <context>
         {context}
-
+        </context>
+        
         If you don´t find the answer in the context, tell the user that you are happy to help with different questions about TUM.
 
+        Here's some examples of questions and answers:
+        <examples>
+        {few_shot_qa_pairs}
+        </examples>
+
         Question: {question}
+
+        Answer:
         """
         ANSWER_PROMPT = ChatPromptTemplate.from_template(answer_template)
 
@@ -126,6 +139,20 @@ class Chatbot:
         else:
             pass
 
+        language = parsed_response.get('language', 'English')
+        # to-do: get degree program from frontend
+        degree_program = "BMT"
+
+        postgres_qa = PostgresLoader()
+        qa_pairs = postgres_qa.get_data(degree_program, language)
+        postgres_qa.close_connection()
+
+        num_to_sample = min(len(qa_pairs), 2)
+
+        few_shot_qa_pairs = '\n\n'.join(
+            [f"Question: {qa[3]}\n Answer: {qa[4]}" for qa in random.sample(qa_pairs, num_to_sample)]
+        ) if num_to_sample > 0 else "No few-shot examples available."
+
 
         _inputs = RunnableParallel(
             standalone_question=RunnablePassthrough.assign(
@@ -146,6 +173,7 @@ class Chatbot:
                 ]
             ),
             "question": itemgetter("standalone_question"),
+            "few_shot_qa_pairs": few_shot_qa_pairs,
         }
         print(_context)
 
