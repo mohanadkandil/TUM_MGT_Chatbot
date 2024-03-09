@@ -36,6 +36,7 @@ class Chunk:
     hash: str | None
     url: str | None
     hits: int
+    uuid: Any  # This is a Weaviate UUID, will only be set in a query result
 
     def __init__(
         self,
@@ -50,6 +51,7 @@ class Chunk:
         hash: str | None = None,
         url: str | None = None,
         hits: int = 0,
+        uuid=None,
     ):
         self.text = text
         self.faculty = faculty
@@ -62,6 +64,7 @@ class Chunk:
         self.hash = hash
         self.url = url
         self.hits = hits
+        self.uuid = uuid
 
     def as_properties(self) -> dict[str, Any]:
         """
@@ -99,6 +102,9 @@ def init_schema(client: WeaviateClient) -> Collection:
         # HNSW is preferred over FLAT for large amounts of data, which is the case here
         vector_index_config=wvc.config.Configure.VectorIndex.hnsw(
             distance_metric=wvc.config.VectorDistances.COSINE  # select preferred distance metric
+        ),
+        inverted_index_config=wvc.config.Configure.inverted_index(
+            index_property_length=True
         ),
         # The properties are like the columns of a table in a relational database
         properties=[

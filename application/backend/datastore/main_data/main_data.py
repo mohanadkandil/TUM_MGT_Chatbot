@@ -1,5 +1,6 @@
 import time
 import traceback
+from typing import Iterable
 
 import weaviate.classes as wvc
 
@@ -48,6 +49,32 @@ class MainData:
             hashes.add(obj.properties[Chunk.HASH])
         return hashes
 
+    def count_chunks(self) -> int:
+        """
+        Count the number of chunks in Weaviate.
+        :return: The number of chunks in Weaviate
+        """
+        return self.collection.aggregate.over_all(total_count=True).total_count
+
+    def count_documents(self) -> int:
+        """
+        Count the number of documents in Weaviate.
+        :return: The number of documents in Weaviate
+        """
+        return len(self._fetch_distinct_hashes())
+
+    def delete_by_hashes(self, hashes: Iterable[str]):
+        """
+        Delete documents from Weaviate by their hashes.
+        :param hashes: The hashes of the documents to delete
+        """
+        for hash in hashes:
+            print(f"Removing chunks with hash '{hash}'...", end="\r")
+            result = self.collection.data.delete_many(
+                where=wvc.query.Filter.by_property(Chunk.HASH).equal(hash)
+            )
+            print(f"Removed {result.successful} chunks with hash '{hash}', {result.failed} failed.")
+
     def _remove_by_hash(self, hash: str):
         """
         Remove documents from Weaviate by their hashes.
@@ -58,6 +85,39 @@ class MainData:
             where=wvc.query.Filter.by_property(Chunk.HASH).equal(hash)
         )
         print(f"Removed {result.successful} chunks with hash '{hash}', {result.failed} failed.")
+
+    def ingest(self, documents: list[SharepointDocument] | set[SharepointDocument]):
+        """
+        Ingest the given documents into Weaviate.
+        :param documents: The documents to ingest
+        """
+        print(f"Uploading new documents to vector database...")
+        successes = 0
+        fails = 0
+        for i, document in enumerate(documents):
+            progress = f"{i + 1}/{len(documents)}"
+            print(f"({progress}) Chunking document '{document.file_path}'... ", end="\r")
+            try:
+                chunk_start = time.time()
+                chunks = document.chunk()
+                chunk_time = elapsed(chunk_start)
+            except Exception as e:
+                print(f"Error while chunking {document.file_path}: {e}")
+                traceback.print_exc()
+                document.update_sync_status(False)
+                fails += 1
+                continue
+            print(f"({progress}) Chunked document '{document.file_path}' into {len(chunks)} chunks (done in {chunk_time}).")
+            try:
+                self._import_chunks(chunks)
+                document.update_sync_status(True)
+                successes += 1
+            except Exception as e:
+                print(f"Error while uploading chunks of {document.file_path}: {e}")
+                traceback.print_exc()
+                document.update_sync_status(False)
+                fails += 1
+        print(f"Of the {len(documents)} documents to upload, {successes} succeeded and {fails} failed.")
 
     def _import_chunks(self, chunks: list[Chunk]):
         """
@@ -94,57 +154,31 @@ class MainData:
         print(f"Found {len(db_hashes)} documents in vector database, comparing with source of truth...")
         truth_docs_by_hash = {doc.hash: doc for doc in source_of_truth}
         truth_hashes = truth_docs_by_hash.keys()
-        hashes_marked_for_resync = {hash for hash, doc in truth_docs_by_hash.items() if doc.is_marked_for_resync()}
-        hashes_to_remove_from_db = db_hashes - (truth_hashes - hashes_marked_for_resync)
+        hashes_to_reembed = {hash for hash, doc in truth_docs_by_hash.items() if doc.should_reembed()}
+        hashes_to_remove_from_db = db_hashes - (truth_hashes - hashes_to_reembed)
         hashes_to_keep_in_db = db_hashes - hashes_to_remove_from_db
         hashes_to_upload = truth_hashes - hashes_to_keep_in_db
 
-        if hashes_marked_for_resync:
-            print(f"{len(hashes_marked_for_resync)} documents are marked for resynchronization and will be re-imported.")
+        if hashes_to_reembed:
+            print(f"{len(hashes_to_reembed)} documents are marked for resynchronization and will be re-imported.")
         print(f"{len(hashes_to_remove_from_db)} documents will be removed, {len(hashes_to_keep_in_db)} documents "
               f"will be kept, and {len(hashes_to_upload)} new documents will be added.")
 
         # Remove documents that are no longer in the source of truth
         if hashes_to_remove_from_db:
             print(f"Removing documents from vector database...")
-            for hash in hashes_to_remove_from_db:
-                self._remove_by_hash(hash)
+            self.delete_by_hashes(hashes_to_remove_from_db)
 
         # Add new documents from the source of truth
-        print(f"Uploading new documents to vector database...")
         documents_to_upload = [truth_docs_by_hash[hash] for hash in hashes_to_upload]
-        successes = 0
-        fails = 0
-        for i, document in enumerate(documents_to_upload):
-            progress = f"{i + 1}/{len(documents_to_upload)}"
-            print(f"({progress}) Chunking document '{document.file_path}'... ", end="\r")
-            try:
-                chunk_start = time.time()
-                chunks = document.chunk()
-                chunk_time = elapsed(chunk_start)
-            except Exception as e:
-                print(f"Error while chunking {document.file_path}: {e}")
-                traceback.print_exc()
-                document.update_sync_status(False)
-                fails += 1
-                continue
-            print(f"({progress}) Chunked document '{document.file_path}' into {len(chunks)} chunks (done in {chunk_time}).")
-            try:
-                self._import_chunks(chunks)
-                document.update_sync_status(True)
-                successes += 1
-            except Exception as e:
-                print(f"Error while uploading chunks of {document.file_path}: {e}")
-                traceback.print_exc()
-                document.update_sync_status(False)
-                fails += 1
-        print("Updating sync status in SharePoint...")
+        self.ingest(documents_to_upload)
+
         # These are just the documents which did not change - we set their sync status to True if it isn't already
         # Those that did change already had their sync status updated
-        for existing_doc in [doc for doc in source_of_truth if doc.hash in hashes_to_keep_in_db]:
+        print("Updating sync status in SharePoint...")
+        for existing_doc in [truth_docs_by_hash[hash] for hash in hashes_to_keep_in_db]:
             existing_doc.update_sync_status(True)
         total_time = elapsed(start)
-        print(f"Of the {len(documents_to_upload)} documents to upload, {successes} succeeded and {fails} failed.")
         print(f"Synchronized vector database with source of truth in {total_time}.")
 
     def search(
@@ -165,34 +199,48 @@ class MainData:
         :param language: Only fetch documents that are (at least partially) in this language.
         """
         # By default only fetch general documents
-        filter = wvc.query.Filter.by_property(Chunk.DEGREE_PROGRAMS).equal([])
+        filter = wvc.query.Filter.by_property(Chunk.DEGREE_PROGRAMS, length=True).equal(0)
         if degree_programs:
             # Fetch general data and data about the specified degree programs
             filter = filter | wvc.query.Filter.by_property(
                 Chunk.DEGREE_PROGRAMS
-            ).contains_any(list(degree_programs))
+            ).contains_any(val=list(degree_programs))
         if language:
-            filter = filter & wvc.query.Filter.by_property(Chunk.LANGUAGES).contains_any([language])
+            filter = filter & wvc.query.Filter.by_property(Chunk.LANGUAGES).contains_any(val=[language])
         result = self.collection.query.hybrid(
             query=query,
             limit=k,
             filters=filter,
             alpha=0.5,  # alpha=1.0 is pure vector search, alpha=0.0 is pure text search. 0.5 is equal weight
-        )  # TODO: Also fetch object IDs to increment the hits
+        )
         # Convert from Weaviate objects to Chunks
         relevant_chunks = [
             Chunk(
+                uuid=obj.uuid,
                 text=obj.properties[Chunk.TEXT],
-                faculty=obj.properties[Chunk.FACULTY],
-                target_groups=obj.properties[Chunk.TARGET_GROUPS],
-                topic=obj.properties[Chunk.TOPIC],
-                subtopic=obj.properties[Chunk.SUBTOPIC],
-                title=obj.properties[Chunk.TITLE],
-                degree_programs=obj.properties[Chunk.DEGREE_PROGRAMS],
-                languages=obj.properties[Chunk.LANGUAGES],
+                faculty=obj.properties.get(Chunk.FACULTY, None),
+                target_groups=obj.properties.get(Chunk.TARGET_GROUPS, None),
+                topic=obj.properties.get(Chunk.TOPIC, None),
+                subtopic=obj.properties.get(Chunk.SUBTOPIC, None),
+                title=obj.properties.get(Chunk.TITLE, None),
+                degree_programs=obj.properties.get(Chunk.DEGREE_PROGRAMS, None),
+                languages=obj.properties.get(Chunk.LANGUAGES, None),
                 hash=obj.properties[Chunk.HASH],
                 url=obj.properties[Chunk.URL],
                 hits=obj.properties[Chunk.HITS],
             ) for obj in result.objects
         ]
         return relevant_chunks
+
+    def increment_hits(self, hits: list[Chunk]):
+        """
+        Increment the hits of the given chunks in Weaviate.
+        :param hits: The chunks to increment the hits of
+        """
+        for chunk in hits:
+            chunk.hits += 1
+            self.collection.data.update(
+                uuid=chunk.uuid,
+                properties={Chunk.HITS: chunk.hits}
+            )
+        print(f"Incremented hits of {len(hits)} chunks.")
