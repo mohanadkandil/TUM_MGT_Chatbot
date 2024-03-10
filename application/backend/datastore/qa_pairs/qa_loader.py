@@ -1,5 +1,5 @@
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg import sql
 import os
 import csv
 from dotenv import load_dotenv, find_dotenv
@@ -34,9 +34,9 @@ class PostgresLoader:
         
     def connect_to_db(self):
         try:
-            connection = psycopg2.connect(conn_string)
+            connection = psycopg.connect(conn_string)
             return connection
-        except psycopg2.OperationalError as error:
+        except psycopg.OperationalError as error:
             print(f"Database connection failed due to {error}")
             return None
 

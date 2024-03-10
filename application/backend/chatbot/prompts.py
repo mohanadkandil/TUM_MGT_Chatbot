@@ -32,7 +32,7 @@ condense_question_template = """Given the following chat history and a follow up
     {question}
     </Follow up question>
 
-    Standalone question:
+    Answer:
 """
 
 CONDENSE_QUESTION_PROMPT = PromptTemplate.from_template(condense_question_template)

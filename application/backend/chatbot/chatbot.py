@@ -11,7 +11,7 @@ from langchain.schema import StrOutputParser, Document, format_document
 
 from application.backend.datastore.db import ChatbotVectorDatabase
 from application.backend.chatbot.history import PostgresChatMessageHistory
-from application.backend.chatbot.prompts import CONDENSE_QUESTION_PROMPT, ANSWER_PROMPT, FEEDBACK_TRIGGER_PROMPT, DEFAULT_DOCUMENT_PROMPT
+from application.backend.chatbot.prompts import CONDENSE_QUESTION_PROMPT, ANSWER_PROMPT, DEFAULT_DOCUMENT_PROMPT
 from application.backend.chatbot.utils import parse_and_filter_question, get_qa_pairs, get_feedback_trigger
 
 load_dotenv(find_dotenv())
@@ -71,6 +71,7 @@ class Chatbot:
         first_filter_result = parse_and_filter_question(question, llm)
 
         if first_filter_result and first_filter_result.get("decision") == "stop":
+            print("First filter applied, stopping here.")
             return {"answer": first_filter_result.get("answer", "Something didn't work with filtering"), "session_id": self.postgres_history.session_id}
 
 
@@ -79,10 +80,11 @@ class Chatbot:
         degree_program = "BMT"
 
         few_shot_qa_pairs = get_qa_pairs(degree_program, language_of_query)
-
+        print(f"Few shot QA pairs: {few_shot_qa_pairs}")
+        print("-------------------")
 
         _inputs = RunnableParallel(
-            standalone_question=RunnablePassthrough.assign(
+            standalone_answer=RunnablePassthrough.assign(
                 chat_history=lambda x: self._format_chat_history(x["chat_history"])
             )
             | CONDENSE_QUESTION_PROMPT
@@ -90,19 +92,26 @@ class Chatbot:
             | StrOutputParser(),
         )
 
+        print(f"Inputs: {_inputs}")
+        print("-------------------")
+
         _context = {
             "context": lambda x: " ".join(
                 [
                     res.text
                     for res in self.chatvec.main.search(
-                        itemgetter("standalone_question")(x)
+                        query=itemgetter("standalone_answer")(x),
+                        k=3,
+                        language=language_of_query,
+                        degree_program=degree_program,
                     )
                 ]
             ),
-            "question": itemgetter("standalone_question"),
+            "question": itemgetter(question), #itemgetter("standalone_question")
             "few_shot_qa_pairs": few_shot_qa_pairs,
         }
-        #print(_context)
+        print(f"Context: {_context}")
+        print("-------------------")
 
         conversational_qa_chain = (
             _inputs | _context | ANSWER_PROMPT | llm | StrOutputParser()
@@ -111,6 +120,8 @@ class Chatbot:
         answer = conversational_qa_chain.invoke(
             {"question": question, "chat_history": conversation.conversation}
         )
+        print(f"Answer: {answer}")
+        print("-------------------")
 
         self.postgres_history.add_user_message(question)
         self.postgres_history.add_ai_message(answer)
