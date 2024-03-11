@@ -31,7 +31,7 @@ condense_question_template = """Given the following chat history and a follow up
     <Follow up question>
     {question}
     </Follow up question>
-
+    
     Answer:
 """
 
@@ -60,9 +60,9 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(answer_template)
 
 feedback_trigger_query = """
     Provide a json object with one key-value pair as follows:
-    {
+    {{
         "trigger_feedback": boolean
-    }
+    }}
 
     Base your decision on the quality of the answer to a user query.
     If the user's question is sufficiently answered, set "trigger_feedback" to true.

@@ -11,8 +11,16 @@ from langchain.schema import StrOutputParser, Document, format_document
 
 from application.backend.datastore.db import ChatbotVectorDatabase
 from application.backend.chatbot.history import PostgresChatMessageHistory
-from application.backend.chatbot.prompts import CONDENSE_QUESTION_PROMPT, ANSWER_PROMPT, DEFAULT_DOCUMENT_PROMPT
-from application.backend.chatbot.utils import parse_and_filter_question, get_qa_pairs, get_feedback_trigger
+from application.backend.chatbot.prompts import (
+    CONDENSE_QUESTION_PROMPT,
+    ANSWER_PROMPT,
+    DEFAULT_DOCUMENT_PROMPT,
+)
+from application.backend.chatbot.utils import (
+    parse_and_filter_question,
+    get_qa_pairs,
+    get_feedback_trigger,
+)
 
 load_dotenv(find_dotenv())
 
@@ -23,6 +31,7 @@ os.environ["LANGCHAIN_PROJECT"] = "MGTChatbot"
 
 openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
 azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+
 
 class Message(BaseModel):
     role: str
@@ -61,19 +70,16 @@ class Chatbot:
             openai_api_key=openai_api_key,
         )
 
-        def _combine_documents(
-            docs, document_prompt=DEFAULT_DOCUMENT_PROMPT, document_separator="\n\n"
-        ):
-            doc_strings = [format_document(doc, document_prompt) for doc in docs]
-            return document_separator.join(doc_strings)
-
-
         first_filter_result = parse_and_filter_question(question, llm)
 
         if first_filter_result and first_filter_result.get("decision") == "stop":
             print("First filter applied, stopping here.")
-            return {"answer": first_filter_result.get("answer", "Something didn't work with filtering"), "session_id": self.postgres_history.session_id}
-
+            return {
+                "answer": first_filter_result.get(
+                    "answer", "Something didn't work with filtering"
+                ),
+                "session_id": self.postgres_history.session_id,
+            }
 
         # to-do: get degree program from frontend
         language_of_query = first_filter_result.get("language", "English")
@@ -91,7 +97,7 @@ class Chatbot:
             | llm
             | StrOutputParser(),
         )
-
+        print("Type, ", type(_inputs))
         print(f"Inputs: {_inputs}")
         print("-------------------")
 
@@ -107,14 +113,22 @@ class Chatbot:
                     )
                 ]
             ),
-            "question": itemgetter(question), #itemgetter("standalone_question")
-            "few_shot_qa_pairs": few_shot_qa_pairs,
+            "question": itemgetter("question"),  # itemgetter("standalone_question")
+            "few_shot_qa_pairs": itemgetter("few_shot_qa_pairs"),
         }
+        print("Type, ", type(_context))
         print(f"Context: {_context}")
         print("-------------------")
 
         conversational_qa_chain = (
-            _inputs | _context | ANSWER_PROMPT | llm | StrOutputParser()
+            {
+                "context": lambda x: _context,
+                "question": RunnablePassthrough(),
+                "few_shot_qa_pairs": lambda x: few_shot_qa_pairs,
+            }
+            | ANSWER_PROMPT
+            | llm
+            | StrOutputParser()
         )
 
         answer = conversational_qa_chain.invoke(
@@ -127,7 +141,8 @@ class Chatbot:
         self.postgres_history.add_ai_message(answer)
 
         feedback_trigger = get_feedback_trigger(question, answer, llm)
-
+        print(feedback_trigger)
+        print(f"Feedback trigger: {feedback_trigger}")
         # to-do: pass feedback_trigger to frontend, create api endpoint to store feedback
         if feedback_trigger.get("trigger_feedback", False):
             print("Feedback triggered")
