@@ -106,16 +106,26 @@ class Chatbot:
                 [
                     res.text
                     for res in self.chatvec.main.search(
-                        query=itemgetter("standalone_answer")(x),
+                        query=question,
                         k=3,
                         language=language_of_query,
-                        degree_program=degree_program,
+                        degree_programs=degree_program,
                     )
                 ]
             ),
-            "question": itemgetter("question"),  # itemgetter("standalone_question")
-            "few_shot_qa_pairs": itemgetter("few_shot_qa_pairs"),
+            # "question": itemgetter("question"),  # itemgetter("standalone_question")
+            # "few_shot_qa_pairs": itemgetter("few_shot_qa_pairs"),
         }
+
+        chunks = self.chatvec.main.search(
+            query=question,
+            k=3,
+            language=language_of_query,
+        )
+
+        for chunk in chunks:
+            print(chunk.text)
+
         print("Type, ", type(_context))
         print(f"Context: {_context}")
         print("-------------------")
