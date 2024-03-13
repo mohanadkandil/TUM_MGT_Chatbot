@@ -2,11 +2,12 @@ import time
 import traceback
 from typing import Iterable
 
+import weaviate
 import weaviate.classes as wvc
 
-import application.backend.datastore.main_data.main_schema as main_schema
-from application.backend.datastore.main_data.main_schema import Chunk
-from application.backend.datastore.main_data.sharepoint_document import SharepointDocument
+import application.backend.datastore.collections.main.schema as main_schema
+from application.backend.datastore.collections.main.schema import Chunk
+from application.backend.datastore.collections.main.sharepoint_document import SharepointDocument
 
 
 def elapsed(start: float) -> str:
@@ -20,7 +21,7 @@ def elapsed(start: float) -> str:
     return f"{int(minutes)}m {int(seconds)}s"
 
 
-class MainData:
+class MainDataCollection:
     """
     This class is responsible for managing the main data of the chatbot.
 
@@ -28,16 +29,16 @@ class MainData:
     - Retrieve the most similar documents to a given query with optional filters
     """
 
-    def __init__(self, db):
-        self.db = db
-        self.collection = main_schema.init_schema(db.client)
+    def __init__(self, client: weaviate.WeaviateClient):
+        self.client = client
+        self.collection = main_schema.init_schema(client)
 
     def clear(self):
         """
         Delete the entire collection from Weaviate.
         """
         print("Clearing the entire main data collection from Weaviate...")
-        main_schema.recreate_schema(self.db.client)
+        main_schema.recreate_schema(self.client)
 
     def _fetch_distinct_hashes(self) -> set[str]:
         """

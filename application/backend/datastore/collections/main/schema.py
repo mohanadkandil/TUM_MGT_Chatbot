@@ -1,3 +1,4 @@
+import os
 from typing import Any
 
 import weaviate.classes as wvc
@@ -98,7 +99,12 @@ def init_schema(client: WeaviateClient) -> Collection:
     return client.collections.create(
         name=COLLECTION_NAME,
         # By specifying a vectorizer, weaviate will automatically vectorize the text content of the chunks
-        vectorizer_config=wvc.config.Configure.Vectorizer.text2vec_openai(),
+        vectorizer_config=wvc.config.Configure.Vectorizer.text2vec_azure_openai(
+            resource_name=os.getenv("AZURE_OPENAI_RESOURCE_NAME"),
+            deployment_id=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
+            base_url=os.getenv("AZURE_OPENAI_ENDPOINT"),
+            vectorize_collection_name=False,
+        ),
         # HNSW is preferred over FLAT for large amounts of data, which is the case here
         vector_index_config=wvc.config.Configure.VectorIndex.hnsw(
             distance_metric=wvc.config.VectorDistances.COSINE  # select preferred distance metric

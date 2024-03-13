@@ -7,8 +7,8 @@ from O365.drive import Folder, File
 from dotenv import load_dotenv
 
 from application.backend.datastore.db import ChatbotVectorDatabase
-from application.backend.datastore.main_data.main_data import elapsed
-from application.backend.datastore.main_data.sharepoint_document import SharepointDocument
+from application.backend.datastore.collections.main.collection import elapsed
+from application.backend.datastore.collections.main.sharepoint_document import SharepointDocument
 
 load_dotenv()
 
@@ -123,6 +123,10 @@ def load_from_sharepoint() -> list[SharepointDocument]:
 
 
 if __name__ == "__main__":
-    documents = load_from_sharepoint()
     db = ChatbotVectorDatabase()
+    documents = load_from_sharepoint()
     db.main.synchronize(documents)
+    # print(db.main.count_documents())
+    # db.main.clear()
+    # db.main.increment_hits(docs)
+    # print(hashes)

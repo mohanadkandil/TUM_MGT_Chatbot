@@ -6,7 +6,7 @@ from O365.sharepoint import SharepointListItem
 from langchain_community.document_loaders import UnstructuredFileLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from application.backend.datastore.main_data.main_schema import Chunk
+from application.backend.datastore.collections.main.schema import Chunk
 
 
 class SyncStatus(str, Enum):
@@ -138,7 +138,7 @@ class SharepointDocument:
                 url=self.item.web_url,
                 hits=0,
             )
-            for split_text in text_splitter.split(doc.page_content)
+            for split_text in text_splitter.split_text(doc.page_content)
         ]
         return chunks
 
