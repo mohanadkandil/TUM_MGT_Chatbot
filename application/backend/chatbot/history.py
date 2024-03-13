@@ -33,7 +33,7 @@ class PostgresChatMessageHistory(BaseChatMessageHistory):
         self,
         session_id: str,
         connection_string: str = conn_string,
-        table_name: str = "message_store",
+        table_name: str = "message_store_new",
     ):
         try:
             self.connection = psycopg.connect(connection_string)

@@ -49,9 +49,9 @@ class Chatbot:
         self.chatvec = ChatbotVectorDatabase()
         self.postgres_history = PostgresChatMessageHistory(session_id=session_id)
 
-    def _format_chat_history(self, conversation: list) -> str:
+    def _format_chat_history(self, conversation: Conversation) -> str:
         formatted_history = ""
-        if len(conversation) == 0:
+        if not conversation.conversation:
             return formatted_history
         for message in conversation:
             formatted_history += f"{message.role}: {message.content}\n"
@@ -71,10 +71,8 @@ class Chatbot:
             azure_endpoint=azure_endpoint,
             openai_api_key=openai_api_key,
         )
-
         
-        history = self._format_chat_history(["chat_history"])
-
+        history = self._format_chat_history(self.conversation_history)
         first_filter_result = parse_and_filter_question(question, history, llm)
 
         if first_filter_result and first_filter_result.get("decision") == "stop":
