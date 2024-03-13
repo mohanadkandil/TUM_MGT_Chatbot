@@ -2,9 +2,10 @@ from langchain_openai import AzureChatOpenAI
 from langchain_core.output_parsers import JsonOutputParser
 from application.backend.chatbot.prompts import FIRST_FILTER_PROMPT, FEEDBACK_TRIGGER_PROMPT
 from application.backend.datastore.qa_pairs.qa_loader import PostgresLoader
+from typing import List
 import random
 
-def parse_and_filter_question(question: str, llm: AzureChatOpenAI) -> dict:
+def parse_and_filter_question(question: str, history: List, llm: AzureChatOpenAI) -> dict:
     """
     Invokes the language model with a filter prompt, parses the JSON response,
     and determines the response based on 'is_tum' and 'is_sensitive' fields.
@@ -14,7 +15,7 @@ def parse_and_filter_question(question: str, llm: AzureChatOpenAI) -> dict:
     :return: A dictionary containing the answer and filtering decision. Additionally the language is returned if no filtering is applied.
     """
     json_parser = JsonOutputParser()
-    filter_prompt = FIRST_FILTER_PROMPT.format(question=question)
+    filter_prompt = FIRST_FILTER_PROMPT.format(history=history, question=question)
     response = llm.invoke(filter_prompt)
     parsed_response = json_parser.parse(response.content)
 

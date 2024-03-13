@@ -1,10 +1,14 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.prompts import PromptTemplate
 
-first_filter_template = """
-    You're given a question and need to decide 3 things about it:
 
-    1. If there is something that specifically rules out that the question is about the Technical University of Munich (TUM), add "is_tum: false" to the JSON. Otherwise, add "is_tum: true".
+# TODO: ADD filter when TUM = false returned, just make normal AI call (potentially just standard answer) and tell the AI to not retrieve context. 
+
+first_filter_template = """
+    
+    You're given a question and a chat history and need to decide 3 things about it:
+
+    1. If there is something that specifically rules out that the question is about the Technical University of Munich (TUM), add "is_tum: false" to the JSON. Otherwise, add "is_tum: true". 
     2. Assess if the question has an inherently super sensitive topic. If it does, add "is_sensitive: true" to the JSON. Otherwise, add "is_sensitive: false".
     3. Assess the question's language. If it's in English, add "language: English" to the JSON. If it's in German, add "language: German" to the JSON.
 
@@ -14,9 +18,18 @@ first_filter_template = """
         "is_sensitive": boolean,
         "language": string
         
+    Chat History:
+
+    <chat_history>
+    {history}
+    </chat_history>
+
     Question:
+    
+    <question>
     {question}
-        
+    </question>
+
     JSON Output:
 """
 

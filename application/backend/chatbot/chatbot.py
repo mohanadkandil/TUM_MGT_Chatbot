@@ -51,6 +51,8 @@ class Chatbot:
 
     def _format_chat_history(self, conversation: list) -> str:
         formatted_history = ""
+        if len(conversation) == 0:
+            return formatted_history
         for message in conversation:
             formatted_history += f"{message.role}: {message.content}\n"
         return formatted_history.rstrip()
@@ -70,7 +72,10 @@ class Chatbot:
             openai_api_key=openai_api_key,
         )
 
-        first_filter_result = parse_and_filter_question(question, llm)
+        
+        history = self._format_chat_history(["chat_history"])
+
+        first_filter_result = parse_and_filter_question(question, history, llm)
 
         if first_filter_result and first_filter_result.get("decision") == "stop":
             print("First filter applied, stopping here.")
@@ -82,7 +87,7 @@ class Chatbot:
             }
 
         # to-do: get degree program from frontend
-        language_of_query = first_filter_result.get("language", "English")
+        language_of_query = "English" #first_filter_result.get("language", "English")
         degree_program = "BMT"
 
         few_shot_qa_pairs = get_qa_pairs(degree_program, language_of_query)
