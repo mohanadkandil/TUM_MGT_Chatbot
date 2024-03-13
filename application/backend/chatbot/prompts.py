@@ -4,7 +4,7 @@ from langchain.prompts import PromptTemplate
 first_filter_template = """
     You're given a question and need to decide 3 things about it:
 
-    1. If the question is about the Technical University of Munich, especially about the School of Management, add "is_tum: true" to the JSON. Otherwise, add "is_tum: false".
+    1. If there is something that specifically rules out that the question is about the Technical University of Munich (TUM), add "is_tum: false" to the JSON. Otherwise, add "is_tum: true".
     2. Assess if the question has an inherently super sensitive topic. If it does, add "is_sensitive: true" to the JSON. Otherwise, add "is_sensitive: false".
     3. Assess the question's language. If it's in English, add "language: English" to the JSON. If it's in German, add "language: German" to the JSON.
 
@@ -38,7 +38,7 @@ condense_question_template = """Given the following chat history and a follow up
 CONDENSE_QUESTION_PROMPT = PromptTemplate.from_template(condense_question_template)
 
 
-answer_template = """Answer the question based only on the following context:
+answer_template = """Answer the question based on the following context:
     <context>
     {context}
     </context>
