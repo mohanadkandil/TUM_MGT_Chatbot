@@ -139,7 +139,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
           </>
         ) : (
           <>
-            <div className="mx-auto max-w-5xl py-12">
+            <div className="mx-auto max-w-5xl py-12 px-12 md:px-8">
               <h1 className="text-[#3070B3] font-extrabold text-5xl">
                 Hello Penny
               </h1>
