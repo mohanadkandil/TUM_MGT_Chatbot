@@ -1,6 +1,6 @@
 export function QuestionsRecommendation() {
   return (
-    <div className="mx-auto flex max-w-5xl gap-4">
+    <div className="mx-auto flex flex-wrap items-center gap-4 w-fit pl-12">
       <div className="bg-[#F1F5F9] p-6 rounded-2xl">
         <h3 className="text-2xl font-semibold">Courses & Credits</h3>
         <div className="flex flex-col justify-between gap-6 pt-6 sm:w-[280px] w-full">
