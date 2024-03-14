@@ -25,8 +25,11 @@ import {
 
 export function SettingsTabs() {
   return (
-    <div className="flex h-[550px]">
-      <Tabs defaultValue="account" className="w-full flex">
+    <div className="h-[550px]">
+      <Tabs
+        defaultValue="account"
+        className="w-full flex sm:flex-row flex-col sm:space-y-0 space-y-4"
+      >
         <TabsList className="flex flex-col items-start pr-10">
           <TabsTrigger value="account">
             <IconSettings className="mr-2" />
@@ -52,7 +55,7 @@ export function SettingsTabs() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="flex items-center">
+            <Card className="">
               <CardHeader>
                 <CardTitle className="font-medium text-base">
                   Language
@@ -77,7 +80,7 @@ export function SettingsTabs() {
             </Card>
           </TabsContent>
           <TabsContent value="password" className="space-y-4">
-            <Card className="flex items-center">
+            <Card className="">
               <CardHeader>
                 <CardTitle className="font-medium text-base">
                   Chat history & training
@@ -93,8 +96,8 @@ export function SettingsTabs() {
                 <Switch id="traindata" />
               </CardContent>
             </Card>
-            <Card className="flex items-center">
-              <CardHeader className="flex-1">
+            <Card className="">
+              <CardHeader>
                 <CardTitle className="font-medium text-base">
                   Archive all chat
                 </CardTitle>
