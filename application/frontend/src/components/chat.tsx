@@ -9,7 +9,7 @@ import { QuestionsRecommendation } from "./questions-recommendation";
 import { ButtonScrollToBottom } from "./button-scroll-to-bottom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import Textarea from "react-textarea-autosize";
-import { IconPlus, IconSend } from "./icons";
+import { IconSend } from "./icons";
 import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "./ui/use-toast";
@@ -170,26 +170,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
         <div className="mx-auto sm:max-w-2xl sm:px-4">
           <div className="px-4 py-2 space-y-4 md:py-4">
             <form onSubmit={handleSubmit} ref={formRef}>
-              <div className="relative flex flex-col w-full px-8 overflow-hidden max-h-60 grow bg-background sm:border sm:rounded-2xl sm:px-12">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        router.refresh();
-                        router.push("/chat");
-                      }}
-                      className={cn(
-                        buttonVariants({ size: "sm", variant: "outline" }),
-                        "absolute left-0 top-4 size-8 rounded-full bg-background p-0 sm:left-4"
-                      )}
-                    >
-                      <IconPlus />
-                      <span className="sr-only">New Chat</span>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>New Chat</TooltipContent>
-                </Tooltip>
+              <div className="relative flex flex-col w-full px-8 overflow-hidden max-h-60 grow bg-background sm:border sm:rounded-2xl sm:px-4">
                 <Textarea
                   ref={inputRef}
                   tabIndex={0}
@@ -201,7 +182,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
                   spellCheck={false}
                   className="min-h-[60px] w-full resize-none bg-transparent px-4 py-[1.3rem] focus-within:outline-none sm:text-sm"
                 />
-                <div className="absolute right-0 top-3.5 sm:right-4">
+                <div className="absolute right-8 top-3.5 sm:right-4">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
