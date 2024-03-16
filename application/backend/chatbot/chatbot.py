@@ -109,7 +109,7 @@ class Chatbot:
         _context = {
             "context": lambda x: " ".join(
                 [
-                    res.text
+                    f"{res.text}, {res.subtopic}, {res.url}"
                     for res in self.chatvec.main.search(
                         query=question,
                         k=3,
@@ -131,10 +131,9 @@ class Chatbot:
         for chunk in chunks:
             print(chunk.text)
 
-
         conversational_qa_chain = (
             {
-                "context": lambda x: _context,
+                "context": _context,
                 "question": RunnablePassthrough(),
                 "few_shot_qa_pairs": lambda x: few_shot_qa_pairs,
             }
@@ -151,7 +150,9 @@ class Chatbot:
 
         answer = ""
 
-        for chunk in conversational_qa_chain.stream({"question": question, "chat_history": conversation.conversation}):
+        for chunk in conversational_qa_chain.stream(
+            {"question": question, "chat_history": conversation.conversation}
+        ):
             print(chunk, end="|", flush=True)
             answer += chunk
 
