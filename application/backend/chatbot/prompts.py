@@ -92,4 +92,16 @@ feedback_trigger_query = """
 
 FEEDBACK_TRIGGER_PROMPT = PromptTemplate.from_template(feedback_trigger_query)
 
+create_email_template = """
+    Based on the following conversation between a user and a chatbot, create an email that can be sent to student support at the Technical University of Munich for more specific information.
+    The email should be in the same language as the conversation and the tone should be polite but not overly formal.
+    Don't use fancy adjectives or words that are too complex.
+
+    <chat_history>
+    {chat_history}
+    </chat_history>
+
+    Email:
+"""
+
 DEFAULT_DOCUMENT_PROMPT = PromptTemplate.from_template(template="{page_content}")
