@@ -129,9 +129,6 @@ class Chatbot:
         for chunk in chunks:
             print(chunk.text)
 
-        print("Type, ", type(_context))
-        print(f"Context: {_context}")
-        print("-------------------")
 
         conversational_qa_chain = (
             {
@@ -144,11 +141,21 @@ class Chatbot:
             | StrOutputParser()
         )
 
-        answer = conversational_qa_chain.invoke(
+        """ answer = conversational_qa_chain.invoke(
             {"question": question, "chat_history": conversation.conversation}
         )
         print(f"Answer: {answer}")
-        print("-------------------")
+        print("-------------------") """
+
+        answer = ""
+
+        for chunk in conversational_qa_chain.stream({"question": question, "chat_history": conversation.conversation}):
+            print(chunk, end="|", flush=True)
+            answer += chunk
+
+            # to-do: stream chunks to frontend
+
+        print(f"Answer from streaming: {answer}")
 
         self.postgres_history.add_user_message(question)
         self.postgres_history.add_ai_message(answer)
