@@ -2,7 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.prompts import PromptTemplate
 
 
-# TODO: ADD filter when TUM = false returned, just make normal AI call (potentially just standard answer) and tell the AI to not retrieve context. 
+# TODO: ADD filter when TUM = false returned, just make normal AI call (potentially just standard answer) and tell the AI to not retrieve context.
 
 first_filter_template = """
     
@@ -56,7 +56,7 @@ answer_template = """Answer the question based on the following context:
     {context}
     </context>
 
-    If you don´t find the answer in the context, tell the user that you are happy to help with different questions about TUM.
+    Use the provided information to give the user the most specific answer. Always provide the links after the relevant sentence that you used for your answer.
 
     Here's some examples of questions and answers:
     <examples>
