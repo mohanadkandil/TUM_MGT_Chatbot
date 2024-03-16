@@ -1,6 +1,6 @@
 import uuid
 import os
-from typing import List
+from typing import List, Optional
 from operator import itemgetter
 from dotenv import find_dotenv, load_dotenv
 from pydantic import BaseModel, Field
@@ -40,6 +40,8 @@ class Message(BaseModel):
 
 class Conversation(BaseModel):
     conversation: list[Message]
+    uuid: Optional[str] = None
+    study_program: Optional[str] = None
 
 
 # Define Chatbot class (Decision-Making Module)
@@ -71,7 +73,7 @@ class Chatbot:
             azure_endpoint=azure_endpoint,
             openai_api_key=openai_api_key,
         )
-        
+
         history = self._format_chat_history(self.conversation_history)
         first_filter_result = parse_and_filter_question(question, history, llm)
 
@@ -85,7 +87,7 @@ class Chatbot:
             }
 
         # to-do: get degree program from frontend
-        language_of_query = "English" #first_filter_result.get("language", "English")
+        language_of_query = "English"  # first_filter_result.get("language", "English")
         degree_program = "BMT"
 
         few_shot_qa_pairs = get_qa_pairs(degree_program, language_of_query)
