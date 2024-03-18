@@ -1,3 +1,4 @@
+import json
 import uuid
 import os
 from typing import List, Optional
@@ -59,7 +60,7 @@ class Chatbot:
             formatted_history += f"{message.role}: {message.content}\n"
         return formatted_history.rstrip()
 
-    def chat(self, question: str, conversation: Conversation) -> str:
+    def chat(self, question: str, conversation: Conversation, study_program: str = "") -> str:
         """
         Chat with the chatbot
         :param question: The question to ask the chatbot
@@ -88,7 +89,7 @@ class Chatbot:
 
         # to-do: get degree program from frontend
         language_of_query = "English"  # first_filter_result.get("language", "English")
-        degree_program = "BMT"
+        degree_program = study_program
 
         few_shot_qa_pairs = get_qa_pairs(degree_program, language_of_query)
         print(f"Few shot QA pairs: {few_shot_qa_pairs}")
@@ -142,23 +143,11 @@ class Chatbot:
             | StrOutputParser()
         )
 
-        """ answer = conversational_qa_chain.invoke(
+        answer = conversational_qa_chain.invoke(
             {"question": question, "chat_history": conversation.conversation}
         )
         print(f"Answer: {answer}")
-        print("-------------------") """
-
-        answer = ""
-
-        for chunk in conversational_qa_chain.stream(
-            {"question": question, "chat_history": conversation.conversation}
-        ):
-            print(chunk, end="|", flush=True)
-            answer += chunk
-
-            # to-do: stream chunks to frontend
-
-        print(f"Answer from streaming: {answer}")
+        print("-------------------")
 
         self.postgres_history.add_user_message(question)
         self.postgres_history.add_ai_message(answer)
@@ -171,6 +160,115 @@ class Chatbot:
             print("Feedback triggered")
 
         return {"answer": answer, "session_id": self.postgres_history.session_id}
+    
+    session_results = {}
+
+    async def chat_stream(self, question: str, conversation: Conversation, study_program: str = ""):
+        """
+        Chat with the chatbot
+        :param question: The question to ask the chatbot
+        :param chat_history: The chat history
+        :return: The chatbot's answer and the session id
+        """
+
+        llm = AzureChatOpenAI(
+            openai_api_version="2023-05-15",
+            deployment_name="ChatbotMGT",
+            azure_endpoint=azure_endpoint,
+            openai_api_key=openai_api_key,
+        )
+
+        history = self._format_chat_history(self.conversation_history)
+        first_filter_result = parse_and_filter_question(question, history, llm)
+
+        if first_filter_result and first_filter_result.get("decision") == "stop":
+            print("First filter applied, stopping here.")
+            Chatbot.session_results[self.session_id] = {
+                "full_answer": "Stopped at first filter", 
+                "session_id": self.session_id,
+            }
+
+        language_of_query = first_filter_result.get("language", "English")
+        degree_program = study_program
+
+        few_shot_qa_pairs = get_qa_pairs(degree_program, language_of_query)
+        print(f"Few shot QA pairs: {few_shot_qa_pairs}")
+        print("-------------------")
+
+        _inputs = RunnableParallel(
+            standalone_answer=RunnablePassthrough.assign(
+                chat_history=lambda x: self._format_chat_history(x["chat_history"])
+            )
+            | CONDENSE_QUESTION_PROMPT
+            | llm
+            | StrOutputParser(),
+        )
+        print("Type, ", type(_inputs))
+        print(f"Inputs: {_inputs}")
+        print("-------------------")
+
+        _context = {
+            "context": lambda x: " ".join(
+                [
+                    f"{res.text}, {res.subtopic}, {res.url}"
+                    for res in self.chatvec.main.search(
+                        query=question,
+                        k=3,
+                        language=language_of_query,
+                        degree_programs=degree_program,
+                    )
+                ]
+            ),
+            # "question": itemgetter("question"),  # itemgetter("standalone_question")
+            # "few_shot_qa_pairs": itemgetter("few_shot_qa_pairs"),
+        }
+
+        chunks = self.chatvec.main.search(
+            query=question,
+            k=3,
+            language=language_of_query,
+        )
+
+        for chunk in chunks:
+            print(chunk.text)
+
+        conversational_qa_chain = (
+            {
+                "context": _context,
+                "question": RunnablePassthrough(),
+                "few_shot_qa_pairs": lambda x: few_shot_qa_pairs,
+            }
+            | ANSWER_PROMPT
+            | llm
+            | StrOutputParser()
+        )
+
+        answer = ""
+
+        async for chunk in conversational_qa_chain.astream(
+            {"question": question, "chat_history": conversation.conversation}
+        ):
+            
+            yield '{"type": "stream", "data": {chunk}}\n\n'
+            answer += chunk
+
+        print(f"Answer from streaming: {answer}")
+
+        self.postgres_history.add_user_message(question)
+        self.postgres_history.add_ai_message(answer)
+
+        feedback_trigger = get_feedback_trigger(question, answer, llm)
+        print(f"Feedback trigger: {feedback_trigger}")
+
+        final_data = {
+            "type": "final",
+            "session_id": self.postgres_history.session_id,
+            "full_answer": answer,
+            "feedback_trigger": feedback_trigger.get("trigger_feedback", False),
+        }
+        
+        yield f"{json.dumps(final_data)}\n\n"
+
 
 
 # Main function to test chatbot locally in terminal
