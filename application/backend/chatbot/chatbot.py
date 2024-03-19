@@ -61,7 +61,9 @@ class Chatbot:
             formatted_history += f"{message.role}: {message.content}\n"
         return formatted_history.rstrip()
 
-    def chat(self, question: str, conversation: Conversation, study_program: str = "") -> str:
+    def chat(
+        self, question: str, conversation: Conversation, study_program: str = ""
+    ) -> str:
         """
         Chat with the chatbot
         :param question: The question to ask the chatbot
@@ -82,7 +84,9 @@ class Chatbot:
         if first_filter_result and first_filter_result.get("decision") == "stop":
             print("First filter applied, stopping here.")
             self.postgres_history.add_user_message(question)
-            self.postgres_history.add_ai_message(first_filter_result.get("answer", "Stopped at first filter"))
+            self.postgres_history.add_ai_message(
+                first_filter_result.get("answer", "Stopped at first filter")
+            )
             return {
                 "answer": first_filter_result.get(
                     "answer", "Something didn't work with filtering"
@@ -126,15 +130,6 @@ class Chatbot:
             # "few_shot_qa_pairs": itemgetter("few_shot_qa_pairs"),
         }
 
-        chunks = self.chatvec.main.search(
-            query=question,
-            k=3,
-            language=language_of_query,
-        )
-
-        for chunk in chunks:
-            print(chunk.text)
-
         conversational_qa_chain = (
             {
                 "context": _context,
@@ -163,9 +158,10 @@ class Chatbot:
             print("Feedback triggered")
 
         return {"answer": answer, "session_id": self.postgres_history.session_id}
-    
 
-    async def chat_stream(self, question: str, conversation: Conversation, study_program: str = ""):
+    async def chat_stream(
+        self, question: str, conversation: Conversation, study_program: str = ""
+    ):
         """
         Chat with the chatbot
         :param question: The question to ask the chatbot
@@ -186,17 +182,21 @@ class Chatbot:
         if first_filter_result and first_filter_result.get("decision") == "stop":
             print("First filter applied, stopping here.")
             self.postgres_history.add_user_message(question)
-            self.postgres_history.add_ai_message(first_filter_result.get("answer", "Stopped at first filter"))
+            self.postgres_history.add_ai_message(
+                first_filter_result.get("answer", "Stopped at first filter")
+            )
 
             final_data = {
                 "type": "final",
                 "data": {
                     "session_id": self.postgres_history.session_id,
-                    "full_answer": {first_filter_result.get("answer", "Stopped at first filter")},
+                    "full_answer": {
+                        first_filter_result.get("answer", "Stopped at first filter")
+                    },
                     "feedback_trigger": False,
-                }
+                },
             }
-            
+
             yield f"{json.dumps(final_data)}\n\n"
         else:
             language_of_query = first_filter_result.get("language", "English")
@@ -259,10 +259,7 @@ class Chatbot:
             async for chunk in conversational_qa_chain.astream(
                 {"question": question, "chat_history": conversation.conversation}
             ):
-                data_to_send = {
-                    "type": "stream",
-                    "data": chunk
-                }
+                data_to_send = {"type": "stream", "data": chunk}
                 yield f"{json.dumps(data_to_send)}\n\n"
                 answer += chunk
 
@@ -280,11 +277,10 @@ class Chatbot:
                     "session_id": self.postgres_history.session_id,
                     "full_answer": answer,
                     "feedback_trigger": feedback_trigger.get("trigger_feedback", False),
-                }
+                },
             }
-            
-            yield f"{json.dumps(final_data)}\n\n"
 
+            yield f"{json.dumps(final_data)}\n\n"
 
 
 # Main function to test chatbot locally in terminal
@@ -303,10 +299,10 @@ async def main():
             except json.JSONDecodeError:
                 print(f"Bot: {r}")
 
-        #resp = bot.chat(usr_input, bot.conversation_history)
-        #print(f"Bot: {resp}")
+        # resp = bot.chat(usr_input, bot.conversation_history)
+        # print(f"Bot: {resp}")
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-    #main()
+    # main()
