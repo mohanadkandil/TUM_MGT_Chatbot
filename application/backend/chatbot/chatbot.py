@@ -186,13 +186,13 @@ class Chatbot:
                 first_filter_result.get("answer", "Stopped at first filter")
             )
 
+            answer = first_filter_result.get("answer", "Stopped at first filter")
+
             final_data = {
                 "type": "final",
                 "data": {
                     "session_id": self.postgres_history.session_id,
-                    "full_answer": {
-                        first_filter_result.get("answer", "Stopped at first filter")
-                    },
+                    "full_answer": answer,
                     "feedback_trigger": False,
                 },
             }
