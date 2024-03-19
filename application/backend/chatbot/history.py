@@ -33,7 +33,7 @@ class PostgresChatMessageHistory(BaseChatMessageHistory):
         self,
         session_id: str,
         connection_string: str = conn_string,
-        table_name: str = "message_store_new",
+        table_name: str = "message_store_time",
     ):
         try:
             self.connection = psycopg.connect(connection_string)
@@ -50,7 +50,8 @@ class PostgresChatMessageHistory(BaseChatMessageHistory):
         create_table_query = f"""CREATE TABLE IF NOT EXISTS {self.table_name} (
             id SERIAL PRIMARY KEY,
             session_id TEXT NOT NULL,
-            message JSONB NOT NULL
+            message JSONB NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );"""
         self.cursor.execute(create_table_query)
         self.connection.commit()

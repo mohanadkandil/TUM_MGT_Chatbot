@@ -1,6 +1,7 @@
 import json
 import uuid
 import os
+import asyncio
 from typing import List, Optional
 from operator import itemgetter
 from dotenv import find_dotenv, load_dotenv
@@ -80,6 +81,8 @@ class Chatbot:
 
         if first_filter_result and first_filter_result.get("decision") == "stop":
             print("First filter applied, stopping here.")
+            self.postgres_history.add_user_message(question)
+            self.postgres_history.add_ai_message(first_filter_result.get("answer", "Stopped at first filter"))
             return {
                 "answer": first_filter_result.get(
                     "answer", "Something didn't work with filtering"
@@ -161,7 +164,6 @@ class Chatbot:
 
         return {"answer": answer, "session_id": self.postgres_history.session_id}
     
-    session_results = {}
 
     async def chat_stream(self, question: str, conversation: Conversation, study_program: str = ""):
         """
@@ -183,105 +185,128 @@ class Chatbot:
 
         if first_filter_result and first_filter_result.get("decision") == "stop":
             print("First filter applied, stopping here.")
-            Chatbot.session_results[self.session_id] = {
-                "full_answer": "Stopped at first filter", 
-                "session_id": self.session_id,
+            self.postgres_history.add_user_message(question)
+            self.postgres_history.add_ai_message(first_filter_result.get("answer", "Stopped at first filter"))
+
+            final_data = {
+                "type": "final",
+                "data": {
+                    "session_id": self.postgres_history.session_id,
+                    "full_answer": {first_filter_result.get("answer", "Stopped at first filter")},
+                    "feedback_trigger": False,
+                }
             }
-
-        language_of_query = first_filter_result.get("language", "English")
-        degree_program = study_program
-
-        few_shot_qa_pairs = get_qa_pairs(degree_program, language_of_query)
-        print(f"Few shot QA pairs: {few_shot_qa_pairs}")
-        print("-------------------")
-
-        _inputs = RunnableParallel(
-            standalone_answer=RunnablePassthrough.assign(
-                chat_history=lambda x: self._format_chat_history(x["chat_history"])
-            )
-            | CONDENSE_QUESTION_PROMPT
-            | llm
-            | StrOutputParser(),
-        )
-        print("Type, ", type(_inputs))
-        print(f"Inputs: {_inputs}")
-        print("-------------------")
-
-        _context = {
-            "context": lambda x: " ".join(
-                [
-                    f"{res.text}, {res.subtopic}, {res.url}"
-                    for res in self.chatvec.main.search(
-                        query=question,
-                        k=3,
-                        language=language_of_query,
-                        degree_programs=degree_program,
-                    )
-                ]
-            ),
-            # "question": itemgetter("question"),  # itemgetter("standalone_question")
-            # "few_shot_qa_pairs": itemgetter("few_shot_qa_pairs"),
-        }
-
-        chunks = self.chatvec.main.search(
-            query=question,
-            k=3,
-            language=language_of_query,
-        )
-
-        for chunk in chunks:
-            print(chunk.text)
-
-        conversational_qa_chain = (
-            {
-                "context": _context,
-                "question": RunnablePassthrough(),
-                "few_shot_qa_pairs": lambda x: few_shot_qa_pairs,
-            }
-            | ANSWER_PROMPT
-            | llm
-            | StrOutputParser()
-        )
-
-        answer = ""
-
-        async for chunk in conversational_qa_chain.astream(
-            {"question": question, "chat_history": conversation.conversation}
-        ):
             
-            yield '{"type": "stream", "data": {chunk}}\n\n'
-            answer += chunk
+            yield f"{json.dumps(final_data)}\n\n"
+        else:
+            language_of_query = first_filter_result.get("language", "English")
+            degree_program = study_program
 
-        print(f"Answer from streaming: {answer}")
+            few_shot_qa_pairs = get_qa_pairs(degree_program, language_of_query)
+            print(f"Few shot QA pairs: {few_shot_qa_pairs}")
+            print("-------------------")
 
-        self.postgres_history.add_user_message(question)
-        self.postgres_history.add_ai_message(answer)
+            _inputs = RunnableParallel(
+                standalone_answer=RunnablePassthrough.assign(
+                    chat_history=lambda x: self._format_chat_history(x["chat_history"])
+                )
+                | CONDENSE_QUESTION_PROMPT
+                | llm
+                | StrOutputParser(),
+            )
+            print("Type, ", type(_inputs))
+            print(f"Inputs: {_inputs}")
+            print("-------------------")
 
-        feedback_trigger = get_feedback_trigger(question, answer, llm)
-        print(f"Feedback trigger: {feedback_trigger}")
+            _context = {
+                "context": lambda x: " ".join(
+                    [
+                        f"{res.text}, {res.subtopic}, {res.url}"
+                        for res in self.chatvec.main.search(
+                            query=question,
+                            k=3,
+                            language=language_of_query,
+                            degree_programs=degree_program,
+                        )
+                    ]
+                ),
+                # "question": itemgetter("question"),  # itemgetter("standalone_question")
+                # "few_shot_qa_pairs": itemgetter("few_shot_qa_pairs"),
+            }
 
-        final_data = {
-            "type": "final",
-            "session_id": self.postgres_history.session_id,
-            "full_answer": answer,
-            "feedback_trigger": feedback_trigger.get("trigger_feedback", False),
-        }
-        
-        yield f"{json.dumps(final_data)}\n\n"
+            chunks = self.chatvec.main.search(
+                query=question,
+                k=3,
+                language=language_of_query,
+            )
+
+            for chunk in chunks:
+                print(chunk.text)
+
+            conversational_qa_chain = (
+                {
+                    "context": _context,
+                    "question": RunnablePassthrough(),
+                    "few_shot_qa_pairs": lambda x: few_shot_qa_pairs,
+                }
+                | ANSWER_PROMPT
+                | llm
+                | StrOutputParser()
+            )
+
+            answer = ""
+
+            async for chunk in conversational_qa_chain.astream(
+                {"question": question, "chat_history": conversation.conversation}
+            ):
+                data_to_send = {
+                    "type": "stream",
+                    "data": chunk
+                }
+                yield f"{json.dumps(data_to_send)}\n\n"
+                answer += chunk
+
+            print(f"Answer from streaming: {answer}")
+
+            self.postgres_history.add_user_message(question)
+            self.postgres_history.add_ai_message(answer)
+
+            feedback_trigger = get_feedback_trigger(question, answer, llm)
+            print(f"Feedback trigger: {feedback_trigger}")
+
+            final_data = {
+                "type": "final",
+                "data": {
+                    "session_id": self.postgres_history.session_id,
+                    "full_answer": answer,
+                    "feedback_trigger": feedback_trigger.get("trigger_feedback", False),
+                }
+            }
+            
+            yield f"{json.dumps(final_data)}\n\n"
 
 
 
 # Main function to test chatbot locally in terminal
-def main():
+async def main():
     bot = Chatbot()
 
     while True:
         usr_input = input("User: ")
         if usr_input == "quit":
             break
-        resp = bot.chat(usr_input, bot.conversation_history)
-        print(f"Bot: {resp}")
+
+        async for r in bot.chat_stream(usr_input, bot.conversation_history):
+            try:
+                response_dict = json.loads(r)
+                print(f"Bot: {response_dict['data']}")
+            except json.JSONDecodeError:
+                print(f"Bot: {r}")
+
+        #resp = bot.chat(usr_input, bot.conversation_history)
+        #print(f"Bot: {resp}")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
+    #main()
