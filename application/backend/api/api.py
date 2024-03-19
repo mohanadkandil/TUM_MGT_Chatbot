@@ -3,7 +3,8 @@ import os
 from operator import itemgetter
 from application.backend.chatbot.chatbot import Chatbot, Message, Conversation
 from dotenv import find_dotenv, load_dotenv
-from fastapi import FastAPI, StreamingResponse
+from fastapi import FastAPI
+from sse_starlette.sse import EventSourceResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from pydantic import BaseModel, Field
@@ -61,7 +62,7 @@ async def ask_question(
 async def chat_stream_endpoint(
     question: str, conversation: Conversation, study_program: str = ""
 ):
-    return StreamingResponse(
+    return EventSourceResponse(
         bot.chat_stream(
             question=question, conversation=conversation, study_program=study_program
         ),
