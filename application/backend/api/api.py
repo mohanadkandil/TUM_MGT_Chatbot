@@ -2,6 +2,7 @@ import logging
 import os
 from operator import itemgetter
 from application.backend.chatbot.chatbot import Chatbot, Message, Conversation
+from application.backend.chatbot.history import PostgresChatMessageHistory
 from dotenv import find_dotenv, load_dotenv
 from fastapi import FastAPI
 from sse_starlette.sse import EventSourceResponse
@@ -72,8 +73,9 @@ async def chat_stream_endpoint(
 
 @app.post("/feedback")
 async def send_feedback(feedback: Feedback):
-    # logging to write feedback to db.
     logger.info(f"Feedback received: {feedback}")
+    history = PostgresChatMessageHistory(feedback.uuid)
+    history.add_feedback_to_message(feedback=feedback.feedback_text, feedback_classification=feedback.feedback_classification) 
     return {"message": "Feedback received successfully"}
 
 
