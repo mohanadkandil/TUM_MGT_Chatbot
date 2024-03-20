@@ -46,13 +46,13 @@ async def test():
 
 
 @app.post("/conversation")
-async def ask_question(
-    question: str, conversation: Conversation, study_program: str = ""
-) -> dict:
+async def ask_question(question: str, conversation: Conversation) -> dict:
     print(question)
     print(conversation)
     answer = bot.chat(
-        question=question, conversation=conversation, study_program=study_program
+        question=question,
+        conversation=conversation,
+        study_program=conversation.study_program,
     )
 
     return {"answer": answer}
