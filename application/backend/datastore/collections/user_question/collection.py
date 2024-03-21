@@ -2,6 +2,7 @@ import weaviate
 import weaviate.classes as wvc
 
 import application.backend.datastore.collections.user_question.schema as user_question_schema
+from application.backend.datastore.collections.user_question.schema import Question
 
 
 class UserQuestionCollection:
@@ -34,3 +35,17 @@ class UserQuestionCollection:
             limit=1,
             return_metadata=wvc.query.MetadataQuery(distance=True)
         )
+
+    def get_all_questions(self) -> list[Question]:
+        """
+        Query the distinct degree programs in Weaviate.
+        :return: The distinct degree programs in Weaviate
+        """
+        questions = []
+        for obj in self.collection.iterator():
+            questions.append(Question(
+                content=obj.properties[Question.CONTENT],
+                hit_times=obj.properties[Question.HIT_TIMES],
+                uuid=obj.uuid
+            ))
+        return questions

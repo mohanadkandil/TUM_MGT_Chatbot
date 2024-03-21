@@ -245,3 +245,13 @@ class MainDataCollection:
                 properties={Chunk.HITS: chunk.hits}
             )
         print(f"Incremented hits of {len(hits)} chunks.")
+
+    def query_distinct_degree_programs(self) -> set[str]:
+        """
+        Query the distinct degree programs in Weaviate.
+        :return: The distinct degree programs in Weaviate
+        """
+        hashes = set()
+        for obj in self.collection.iterator(return_properties=[Chunk.DEGREE_PROGRAMS]):
+            hashes.update(obj.properties[Chunk.DEGREE_PROGRAMS])
+        return hashes
