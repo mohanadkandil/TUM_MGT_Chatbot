@@ -5,7 +5,6 @@ from typing import Iterable
 import weaviate
 import weaviate.classes as wvc
 
-import application.backend.datastore.collections.main.schema as main_schema
 from application.backend.datastore.collections.main.schema import Chunk
 from application.backend.datastore.collections.main.sharepoint_document import SharepointDocument
 
@@ -18,7 +17,7 @@ def elapsed(start: float) -> str:
     """
     now = time.time()
     minutes, seconds = divmod(now - start, 60)
-    return f"{int(minutes)}m {int(seconds)}s"
+    return f"{int(minutes)}m {seconds:.2f}s" if minutes > 0 else f"{seconds:.2f}s"
 
 
 class MainDataCollection:
@@ -29,16 +28,8 @@ class MainDataCollection:
     - Retrieve the most similar documents to a given query with optional filters
     """
 
-    def __init__(self, client: weaviate.WeaviateClient):
-        self.client = client
-        self.collection = main_schema.init_schema(client)
-
-    def clear(self):
-        """
-        Delete the entire collection from Weaviate.
-        """
-        print("Clearing the entire main data collection from Weaviate...")
-        main_schema.recreate_schema(self.client)
+    def __init__(self, collection: weaviate.collections.Collection):
+        self.collection = collection
 
     def _fetch_distinct_hashes(self) -> set[str]:
         """
@@ -97,44 +88,59 @@ class MainDataCollection:
         fails = 0
         for i, document in enumerate(documents):
             progress = f"{i + 1}/{len(documents)}"
-            print(f"({progress}) Chunking document '{document.file_path}'... ", end="\r")
+            print(f"({progress}) Chunking document '{document.file_path}'...", end="\r")
+            # Try to chunk the document
+            # If this fails then there is a bug with a chunking library, stacktrace will be printed
             try:
-                chunk_start = time.time()
+                chunking = time.time()
                 chunks = document.chunk()
-                chunk_time = elapsed(chunk_start)
-            except Exception as e:
-                print(f"Error while chunking {document.file_path}: {e}")
+                print(f"({progress}) Chunked document '{document.file_path}' into {len(chunks)} chunks "
+                      f"(took {elapsed(chunking)}).")
+            except Exception:
+                print(f"({progress}) Failed to chunk document '{document.file_path}'")
                 traceback.print_exc()
-                document.update_sync_status(False)
+                document.update_sync_status(False)  # Make sure SharePoint shows that this document failed
                 fails += 1
                 continue
-            print(f"({progress}) Chunked document '{document.file_path}' into {len(chunks)} chunks (done in {chunk_time}).")
+
+            # Try to upload the chunks
             try:
-                self._import_chunks(chunks)
+                self.import_chunks(chunks)
                 document.update_sync_status(True)
                 successes += 1
             except Exception as e:
                 print(f"Error while uploading chunks of {document.file_path}: {e}")
-                traceback.print_exc()
                 document.update_sync_status(False)
                 fails += 1
         print(f"Of the {len(documents)} documents to upload, {successes} succeeded and {fails} failed.")
 
-    def _import_chunks(self, chunks: list[Chunk]):
+    def import_chunks(self, chunks: list[Chunk]):
         """
         Import the given chunks into Weaviate.
         :param chunks: The chunks to import
         """
-        print(f"Uploading {len(chunks)} chunks...", end="\r")
+        len_chunks = len(chunks)
+        print(f"Uploading chunks... (0/{len_chunks})", end="\r")
         upload_start = time.time()
+        remaining_objects = [chunk.as_properties() for chunk in chunks]
+        attempts = 1
+        remaining_objects = self.upload_objects(remaining_objects)  # Try to upload all chunks
+        while remaining_objects:  # Retry failed chunks after a 10-second wait (Azure rate limit)
+            print(f"Uploading chunks... ({len_chunks - len(remaining_objects)}/{len_chunks}) (attempts: {attempts})", end="\r")
+            time.sleep(10)
+            attempts += 1
+            remaining_objects = self.upload_objects(remaining_objects)
+        if remaining_objects:
+            raise Exception(f"Failed to embed {len(remaining_objects)} chunks.")
+        print(f"Uploaded {len_chunks} chunks in {attempts} batches (took {elapsed(upload_start)}).")
+
+    def upload_objects(self, objects: list[dict]):
         with self.collection.batch.dynamic() as batch:
-            for document_chunk in chunks:
-                batch.add_object(properties=document_chunk.as_properties())
-        batch.flush()
-        upload_time = elapsed(upload_start)
+            for object_to_upload in objects:
+                batch.add_object(properties=object_to_upload)
         if batch.number_errors > 0:
-            raise Exception(f"Failed to upload {batch.number_errors} chunks.")
-        print(f"Uploaded {len(chunks)} chunks (done in {upload_time}).")
+            return [failed.object_.properties for failed in batch._BatchBase__results_for_wrapper.failed_objects]
+        return []
 
     def synchronize(self, source_of_truth: list[SharepointDocument]):
         """
@@ -179,8 +185,7 @@ class MainDataCollection:
         print("Updating sync status in SharePoint...")
         for existing_doc in [truth_docs_by_hash[hash] for hash in hashes_to_keep_in_db]:
             existing_doc.update_sync_status(True)
-        total_time = elapsed(start)
-        print(f"Synchronized vector database with source of truth in {total_time}.")
+        print(f"Synchronized vector database with source of truth in {elapsed(start)}.")
 
     def search(
         self,
@@ -192,7 +197,6 @@ class MainDataCollection:
         """
         Retrieve the most similar documents to the given query with optional filtering.
         This performs a hybrid search in Weaviate.
-        TODO: Experiment with different search strategies and parameters
         :param query: The query to search for
         :param k: The number of documents to retrieve
         :param degree_programs: Only fetch documents that are about at least one of these degree programs.

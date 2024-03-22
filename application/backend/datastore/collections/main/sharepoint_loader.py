@@ -7,7 +7,7 @@ from O365.drive import Folder, File
 from dotenv import load_dotenv
 
 from application.backend.datastore.db import ChatbotVectorDatabase
-from application.backend.datastore.collections.main.collection import elapsed
+from application.backend.datastore.collections.main.main_data import elapsed
 from application.backend.datastore.collections.main.sharepoint_document import SharepointDocument
 
 load_dotenv()
@@ -65,12 +65,14 @@ def load_from_sharepoint() -> list[SharepointDocument]:
     )
     if account.authenticate():
         print("Authenticated with SharePoint")
+    # First load the files with OneDrive, so we know what items we need to fetch from SharePoint
     root = account.storage().get_drive(drive_id).get_item_by_path(DATA_FOLDER)
     downloadable_files = load_file_structure(root, "")
     total_files = len(downloadable_files)
 
     local_documents = []
     print(f"Downloading {total_files} files from SharePoint...")
+    # Load all list items (files and folders) from SharePoint with their column data
     sharepoint_items = (
         account.sharepoint()
         .get_site("tumde.sharepoint.com", "/sites/MGTChatbot")
@@ -92,14 +94,14 @@ def load_from_sharepoint() -> list[SharepointDocument]:
         # Format the web_url to get rid of encoding (e.g. %20), then split by / and get the last part
         # If this is a file name we got from OneDrive, we can get its fields
         url = urllib.parse.unquote(sharepoint_item.web_url)
-        index = url.find(DATA_FOLDER)
-        if index == -1:
+        index = url.find(DATA_FOLDER)  # Try to find the root folder
+        if index == -1:  # Data root folder was not found, this path is not relevant
             continue
         file_path = url[index + len(DATA_FOLDER):]
-        if file_path not in downloadable_files:
+        if file_path not in downloadable_files:  # This path is not one of the files we found in OneDrive to download
             continue
         file = downloadable_files.pop(file_path)
-        download_path = f"{TEMP_DIR}{file_path}"
+        download_path = f"{TEMP_DIR}{file_path}"  # Create a local path for the file (file_path has a leading /)
         progress = f"{total_files - len(downloadable_files)}/{total_files}"
         if os.path.isfile(download_path):
             print(f"({progress}) File {file_path} already exists, skipping download.")
@@ -110,15 +112,14 @@ def load_from_sharepoint() -> list[SharepointDocument]:
             print(f"({progress}) Downloading {file_path}...", end="\r")
             download_start = time.time()
             file.download(to_path=download_folder, chunk_size=DOWNLOAD_CHUNK_SIZE)
-            download_duration = elapsed(download_start)
-            print(f"({progress}) Downloading {file_path}... (done in {download_duration})")
+            print(f"({progress}) Downloading {file_path}... (done in {elapsed(download_start)})")
             downloaded += 1
         local_documents.append(SharepointDocument(download_path, sharepoint_item))
 
-    total_duration = elapsed(start)
-    print(f"Downloaded {downloaded} files ({cached} cached) from SharePoint in {total_duration}.")
+    print(f"Downloaded {downloaded} files ({cached} cached) from SharePoint in {elapsed(start)}.")
     if downloadable_files:
-        print(f"Warning: The following files were not found in SharePoint: {downloadable_files.keys()}")
+        print(f"Warning: The following files were found in OneDrive, but not SharePoint (what does this mean?):"
+              f"{downloadable_files.keys()}")
     return local_documents
 
 
