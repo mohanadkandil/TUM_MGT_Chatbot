@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { ChatList } from "./chat-list";
+import axios, { AxiosError } from "axios";
 import { QuestionsRecommendation } from "./questions-recommendation";
 import { ButtonScrollToBottom } from "./button-scroll-to-bottom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -59,50 +60,54 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     addNewMessageToChats(newMessage, id);
     setInput("");
 
-    const encodedQuestion = encodeURIComponent(input);
-    const url = `https://copilot-tum-mgt.de/conversation?question=${encodedQuestion}`;
+    const response = await axios.post(
+      "api/chat",
+      JSON.stringify({ data: input })
+    );
 
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          conversation: [
-            {
-              role: "string", // Adjust the role as needed for your application
-              content: input,
-            },
-          ],
-        }),
-      });
+    console.log("RESPONSEEEEE ", response.data.answer);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    // try {
+    //   const response = await fetch(url, {
+    //     method: "POST",
+    //     headers: {
+    //       Accept: "application/json",
+    //       "Content-Type": "application/json",
+    //     },
+    //     body: JSON.stringify({
+    //       conversation: [
+    //         {
+    //           role: "string", // Adjust the role as needed for your application
+    //           content: input,
+    //         },
+    //       ],
+    //     }),
+    //   });
 
-      const data = await response.json();
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        content: data.answer.answer,
-        role: "system", // or 'system', directly using the string literal
-      };
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
-      addNewMessageToChats(newMessage, id);
-      isLoadingRef.current = false;
-      // Handle success response here, such as updating UI or state accordingly
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: "There was a problem with your request.",
-      });
-      isLoadingRef.current = false;
-      console.error("Error submitting question:", error);
-      // Handle error scenario, such as displaying an error message to the user
-    }
+    //   if (!response.ok) {
+    //     throw new Error(`HTTP error! status: ${response.status}`);
+    //   }
+
+    //   const data = await response.json();
+    //   const newMessage: Message = {
+    //     id: Date.now().toString(),
+    //     content: data.answer.answer,
+    //     role: "system", // or 'system', directly using the string literal
+    //   };
+    //   setMessages((prevMessages) => [...prevMessages, newMessage]);
+    //   addNewMessageToChats(newMessage, id);
+    //   isLoadingRef.current = false;
+    //   // Handle success response here, such as updating UI or state accordingly
+    // } catch (error) {
+    //   toast({
+    //     variant: "destructive",
+    //     title: "Uh oh! Something went wrong.",
+    //     description: "There was a problem with your request.",
+    //   });
+    //   isLoadingRef.current = false;
+    //   console.error("Error submitting question:", error);
+    //   // Handle error scenario, such as displaying an error message to the user
+    // }
   };
 
   const addNewMessageToChats = (
