@@ -38,7 +38,7 @@ def parse_and_filter_question(
     parsed_response = json_parser.parse(response.content)
 
     if not parsed_response.get("is_tum", True):
-        print(question)
+        print("Not TUM related")
         answer = "I'm sorry, I can't answer that question. Please ask me about TUM School of Management."
         prompt = ChatPromptTemplate.from_template(
             """You are specialized chatbot at the TUM School of Management providing the students relevant answers to their study related questions. A function was triggered that symbolized that the question was not related to any 
@@ -54,12 +54,15 @@ def parse_and_filter_question(
 
         return {"answer": answer, "decision": "stop"}
     elif parsed_response.get("is_sensitive", False):
+        print("Sensitive data")
         answer = "I'm sorry, I can't answer that question. Make sure to not include any sensitive data in your inquiry or contact the SOM directly."
         return {"answer": answer, "decision": "stop"}
 
     language = parsed_response.get("language", "English")
 
-    return {"answer": None, "decision": "continue", "language": language}
+    keywords = parsed_response.get("keywords", "")
+
+    return {"answer": None, "decision": "continue", "language": language, "keywords": keywords}
 
 
 def get_qa_pairs(degree_program: str, language: str) -> str:
