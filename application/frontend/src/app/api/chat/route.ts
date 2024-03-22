@@ -3,7 +3,7 @@ interface RequestBody {
   data: string; 
 }
 export async function POST(req: Request) {
-  const body = await req.json() as RequestBody
+  const body = await req.json()
   const { data } = body
   const encodedQuestion = encodeURIComponent(data);
   const url = `https://copilot-tum-mgt.de/conversation?question=${encodedQuestion}`;

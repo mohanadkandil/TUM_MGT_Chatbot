@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { ChatList } from "./chat-list";
 import axios, { AxiosError } from "axios";
+import { dataTagSymbol, useMutation } from "@tanstack/react-query";
 import { QuestionsRecommendation } from "./questions-recommendation";
 import { ButtonScrollToBottom } from "./button-scroll-to-bottom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -47,6 +48,32 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
   const isLoadingRef = useRef(false);
   const initialMessagesRef = useRef(initialMessages);
 
+  const { mutate: sendMessage, isPending: isMessagePending } = useMutation({
+    mutationFn: async () => {
+      const payload = JSON.stringify({ data: input });
+      const { data } = await axios.post("api/chat", payload);
+      return data.answer.answer;
+    },
+    onError: (err) => {
+      console.log(err);
+      return toast({
+        title: "There was a problem.",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data) => {
+      console.log(data);
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        content: data,
+        role: "system", // or 'system', directly using the string literal
+      };
+      setMessages((prevMessages) => [...prevMessages, newMessage]);
+      addNewMessageToChats(newMessage, id);
+    },
+  });
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -60,54 +87,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     addNewMessageToChats(newMessage, id);
     setInput("");
 
-    const response = await axios.post(
-      "api/chat",
-      JSON.stringify({ data: input })
-    );
-
-    console.log("RESPONSEEEEE ", response.data.answer);
-
-    // try {
-    //   const response = await fetch(url, {
-    //     method: "POST",
-    //     headers: {
-    //       Accept: "application/json",
-    //       "Content-Type": "application/json",
-    //     },
-    //     body: JSON.stringify({
-    //       conversation: [
-    //         {
-    //           role: "string", // Adjust the role as needed for your application
-    //           content: input,
-    //         },
-    //       ],
-    //     }),
-    //   });
-
-    //   if (!response.ok) {
-    //     throw new Error(`HTTP error! status: ${response.status}`);
-    //   }
-
-    //   const data = await response.json();
-    //   const newMessage: Message = {
-    //     id: Date.now().toString(),
-    //     content: data.answer.answer,
-    //     role: "system", // or 'system', directly using the string literal
-    //   };
-    //   setMessages((prevMessages) => [...prevMessages, newMessage]);
-    //   addNewMessageToChats(newMessage, id);
-    //   isLoadingRef.current = false;
-    //   // Handle success response here, such as updating UI or state accordingly
-    // } catch (error) {
-    //   toast({
-    //     variant: "destructive",
-    //     title: "Uh oh! Something went wrong.",
-    //     description: "There was a problem with your request.",
-    //   });
-    //   isLoadingRef.current = false;
-    //   console.error("Error submitting question:", error);
-    //   // Handle error scenario, such as displaying an error message to the user
-    // }
+    sendMessage();
   };
 
   const addNewMessageToChats = (
@@ -122,9 +102,6 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     }
     localStorage.setItem("chats", JSON.stringify(chats));
   };
-
-  console.log("Messages ", messages);
-
   useEffect(() => {
     if (
       JSON.stringify(initialMessages) !==
@@ -161,7 +138,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
         <ButtonScrollToBottom />
         <div className="mx-auto sm:max-w-2xl sm:px-4">
           <div className="flex items-center justify-center h-12">
-            {isLoadingRef.current ? (
+            {isMessagePending ? (
               <Button
                 variant="outline"
                 onClick={() => stop()}
@@ -194,7 +171,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
                         type="submit"
                         variant="ghost"
                         size="icon"
-                        disabled={isLoadingRef.current || input === ""}
+                        disabled={isMessagePending || input === ""}
                       >
                         <IconSend />
                         <span className="sr-only">Send message</span>
