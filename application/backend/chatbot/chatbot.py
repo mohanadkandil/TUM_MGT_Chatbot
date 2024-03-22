@@ -97,12 +97,15 @@ class Chatbot:
         # to-do: get degree program from frontend
         language_of_query = "English"  # first_filter_result.get("language", "English")
         degree_program = study_program
+        keyword_string = first_filter_result.get("keywords", "")
+
+        print(f"keyword_string: {keyword_string}")
 
         few_shot_qa_pairs = get_qa_pairs(degree_program, language_of_query)
         print(f"Few shot QA pairs: {few_shot_qa_pairs}")
         print("-------------------")
 
-        _inputs = RunnableParallel(
+        """ _inputs = RunnableParallel(
             standalone_answer=RunnablePassthrough.assign(
                 chat_history=lambda x: self._format_chat_history(x["chat_history"])
             )
@@ -112,14 +115,14 @@ class Chatbot:
         )
         print("Type, ", type(_inputs))
         print(f"Inputs: {_inputs}")
-        print("-------------------")
+        print("-------------------") """
 
         _context = {
             "context": lambda x: " ".join(
                 [
                     f"{res.text}, {res.subtopic}, {res.url}"
                     for res in self.chatvec.main.search(
-                        query=question,
+                        query=keyword_string,
                         k=3,
                         language=language_of_query,
                         degree_programs=degree_program,
@@ -201,12 +204,16 @@ class Chatbot:
         else:
             language_of_query = first_filter_result.get("language", "English")
             degree_program = study_program
+            keyword_string = first_filter_result.get("keywords", "")
+
+            print(f"keyword_string: {keyword_string}")
+            print("-------------------")
 
             few_shot_qa_pairs = get_qa_pairs(degree_program, language_of_query)
             print(f"Few shot QA pairs: {few_shot_qa_pairs}")
             print("-------------------")
 
-            _inputs = RunnableParallel(
+            """ _inputs = RunnableParallel(
                 standalone_answer=RunnablePassthrough.assign(
                     chat_history=lambda x: self._format_chat_history(x["chat_history"])
                 )
@@ -216,14 +223,14 @@ class Chatbot:
             )
             print("Type, ", type(_inputs))
             print(f"Inputs: {_inputs}")
-            print("-------------------")
+            print("-------------------") """
 
             _context = {
                 "context": lambda x: " ".join(
                     [
                         f"{res.text}, {res.subtopic}, {res.url}"
                         for res in self.chatvec.main.search(
-                            query=question,
+                            query=keyword_string if keyword_string else question,
                             k=3,
                             language=language_of_query,
                             degree_programs=degree_program,
@@ -242,6 +249,7 @@ class Chatbot:
 
             for chunk in chunks:
                 print(chunk.text)
+                print("-------------------")
 
             conversational_qa_chain = (
                 {
