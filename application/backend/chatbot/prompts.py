@@ -83,7 +83,14 @@ A previous function has retrieved the following information from the Chatbot dat
     {few_shot_qa_pairs}
     </examples>
 
-    Here is the question: {question}
+    Here is the question and history:
+    
+    {question}
+
+    <history>
+    {chat_history}
+    </history>
+
 
     YOU MUST keep your answers short and precise and don't waste time with unnecessary information.
 

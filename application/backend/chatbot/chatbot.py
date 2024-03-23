@@ -78,7 +78,7 @@ class Chatbot:
             openai_api_key=openai_api_key,
         )
 
-        history = self._format_chat_history(self.conversation_history)
+        history = self._format_chat_history(conversation)
         first_filter_result = parse_and_filter_question(question, history, llm)
 
         if first_filter_result and first_filter_result.get("decision") == "stop":
@@ -137,6 +137,7 @@ class Chatbot:
             {
                 "context": _context,
                 "question": RunnablePassthrough(),
+                "chat_history": RunnablePassthrough(),
                 "few_shot_qa_pairs": lambda x: few_shot_qa_pairs,
             }
             | ANSWER_PROMPT
@@ -179,7 +180,7 @@ class Chatbot:
             openai_api_key=openai_api_key,
         )
 
-        history = self._format_chat_history(self.conversation_history)
+        history = self._format_chat_history(conversation)
         first_filter_result = parse_and_filter_question(question, history, llm)
 
         if first_filter_result and first_filter_result.get("decision") == "stop":
@@ -255,6 +256,7 @@ class Chatbot:
                 {
                     "context": _context,
                     "question": RunnablePassthrough(),
+                    "chat_history": RunnablePassthrough(),
                     "few_shot_qa_pairs": lambda x: few_shot_qa_pairs,
                 }
                 | ANSWER_PROMPT
