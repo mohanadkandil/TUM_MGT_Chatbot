@@ -57,7 +57,7 @@ class Chatbot:
         formatted_history = ""
         if not conversation.conversation:
             return formatted_history
-        for message in conversation:
+        for message in conversation.conversation:
             formatted_history += f"{message.role}: {message.content}\n"
         return formatted_history.rstrip()
 
@@ -172,7 +172,7 @@ class Chatbot:
         :param chat_history: The chat history
         :return: The chatbot's answer and the session id
         """
-
+        print(conversation)
         llm = AzureChatOpenAI(
             openai_api_version="2023-05-15",
             deployment_name="ChatbotMGT",

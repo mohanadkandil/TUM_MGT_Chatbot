@@ -60,12 +60,12 @@ async def ask_question(question: str, conversation: Conversation) -> dict:
 
 
 @app.post("/chat_stream/")
-async def chat_stream_endpoint(
-    question: str, conversation: Conversation, study_program: str = ""
-):
+async def chat_stream_endpoint(question: str, conversation: Conversation):
     return EventSourceResponse(
         bot.chat_stream(
-            question=question, conversation=conversation, study_program=study_program
+            question=question,
+            conversation=conversation,
+            study_program=conversation.study_program,
         ),
         media_type="text/event-stream",
     )
@@ -75,7 +75,10 @@ async def chat_stream_endpoint(
 async def send_feedback(feedback: Feedback):
     logger.info(f"Feedback received: {feedback}")
     history = PostgresChatMessageHistory(feedback.uuid)
-    history.add_feedback_to_message(feedback=feedback.feedback_text, feedback_classification=feedback.feedback_classification) 
+    history.add_feedback_to_message(
+        feedback=feedback.feedback_text,
+        feedback_classification=feedback.feedback_classification,
+    )
     return {"message": "Feedback received successfully"}
 
 
