@@ -1,21 +1,21 @@
 "use client";
+
 import { cn } from "@/lib/utils";
 import { UseChatHelpers } from "ai/react";
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { ChatList } from "./chat-list";
-import axios, { AxiosError } from "axios";
-import { dataTagSymbol, useMutation } from "@tanstack/react-query";
 import { QuestionsRecommendation } from "./questions-recommendation";
 import { ButtonScrollToBottom } from "./button-scroll-to-bottom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import Textarea from "react-textarea-autosize";
 import { IconSend } from "./icons";
 import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { useToast } from "./ui/use-toast";
 import { Message } from "@/lib/types";
+import { useStreamResponse } from "@/app/api/api";
 
 export interface ChatProps extends React.ComponentProps<"div"> {
   initialMessages?: Message[];
@@ -29,7 +29,6 @@ export interface PormptProps
 }
 
 export function Chat({ id, initialMessages = [] }: ChatProps) {
-  const path = usePathname();
   const [previewToken, setPreviewToken] = useLocalStorage<string | null>(
     "ai-token",
     null
@@ -44,64 +43,89 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  console.log("🚀 ~ Chat ~ messages:", messages);
   const [input, setInput] = useState<string>("");
   const isLoadingRef = useRef(false);
   const initialMessagesRef = useRef(initialMessages);
+  const [streamedText, setStreamedText] = useState("");
+  const [streamingMessageId, setStreamingMessageId] = useState(null);
+  const [streaming, setStreaming] = useState(false); // New state to track if streaming is active
 
-  const { mutate: sendMessage, isPending: isMessagePending } = useMutation({
-    mutationFn: async () => {
-      const payload = JSON.stringify({ data: input });
-      const { data } = await axios.post("api/chat", payload);
-      return data.answer.answer;
-    },
-    onError: (err) => {
-      console.log(err);
-      return toast({
-        title: "There was a problem.",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
+  const addOrUpdateMessageInChats = (messageToUpdate, chatId) => {
+    const chats = JSON.parse(localStorage.getItem("chats") || "{}");
+    if (!chats[chatId]) chats[chatId] = [];
+    const messageIndex = chats[chatId].findIndex(
+      (m) => m.id === messageToUpdate.id
+    );
+
+    if (messageIndex >= 0) {
+      chats[chatId][messageIndex] = messageToUpdate; // Update existing message
+    } else {
+      chats[chatId].push(messageToUpdate); // Add new message
+    }
+
+    localStorage.setItem("chats", JSON.stringify(chats));
+  };
+
+  const handleStreamedText = useCallback(
+    (newText) => {
+      setMessages((currentMessages) => {
+        const updatedMessages = currentMessages.map((msg) => {
+          if (msg.id === streamingMessageId) {
+            const updatedMessage = { ...msg, content: msg.content + newText };
+            // Persist the updated message
+            addOrUpdateMessageInChats(updatedMessage, id);
+            return updatedMessage;
+          }
+          return msg;
+        });
+        return updatedMessages;
       });
     },
-    onSuccess: (data) => {
-      console.log(data);
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        content: data,
-        role: "system", // or 'system', directly using the string literal
-      };
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
-      addNewMessageToChats(newMessage, id);
-    },
+    [streamingMessageId, id]
+  );
+
+  const {
+    startStream,
+    isLoading: isMessageLoading,
+    responses,
+    isError,
+    streamingFinished,
+    finalAnswer,
+  } = useStreamResponse({
+    streamCallback: handleStreamedText,
   });
+  console.log("🚀 ~ Chat ~ finalAnswer:", finalAnswer);
+
+  const startStreamWithSetup = () => {
+    const streamingMessageId = `system-${Date.now().toString()}`; // Generate a unique ID for the streaming message
+    const newMessage: Message = {
+      id: streamingMessageId,
+      content: "", // Initialize with empty content
+      role: "system",
+    };
+    setMessages((prev) => [...prev, newMessage]); // Add the new system message to the chat
+    setStreamingMessageId(streamingMessageId); // Save this ID to update the message later
+
+    // Assuming startStream is a function that begins the text streaming process
+    startStream(input); // Pass any necessary input to start the stream
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-${Date.now().toString()}`,
       content: input,
       role: "user", // or 'system', directly using the string literal
     };
     isLoadingRef.current = true;
     setMessages((prevMessages) => [...prevMessages, newMessage]);
-    addNewMessageToChats(newMessage, id);
+    addOrUpdateMessageInChats(newMessage, id);
+    startStreamWithSetup();
     setInput("");
-
-    sendMessage();
   };
 
-  const addNewMessageToChats = (
-    newMessage: Message,
-    chatId: string | number | undefined
-  ) => {
-    const chats = JSON.parse(localStorage.getItem("chats") || "{}");
-    if (chatId) {
-      const chatMessages = chats[chatId] || [];
-      chatMessages.push(newMessage);
-      chats[chatId] = chatMessages;
-    }
-    localStorage.setItem("chats", JSON.stringify(chats));
-  };
   useEffect(() => {
     if (
       JSON.stringify(initialMessages) !==
@@ -111,6 +135,14 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
       initialMessagesRef.current = initialMessages;
     }
   }, [initialMessages]);
+
+  if (isError) {
+    return toast({
+      title: "There was a problem.",
+      description: "Something went wrong. Please try again.",
+      variant: "destructive",
+    });
+  }
 
   return (
     <>
@@ -138,7 +170,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
         <ButtonScrollToBottom />
         <div className="mx-auto sm:max-w-2xl sm:px-4">
           <div className="flex items-center justify-center h-12">
-            {isMessagePending ? (
+            {isMessageLoading ? (
               <Button
                 variant="outline"
                 onClick={() => stop()}
@@ -171,7 +203,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
                         type="submit"
                         variant="ghost"
                         size="icon"
-                        disabled={isMessagePending || input === ""}
+                        disabled={isMessageLoading || input === ""}
                       >
                         <IconSend />
                         <span className="sr-only">Send message</span>
