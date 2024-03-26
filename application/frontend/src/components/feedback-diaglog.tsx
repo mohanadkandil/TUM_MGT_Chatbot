@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "./ui/label";
@@ -31,16 +32,39 @@ function FeedbackDialog({
   onUpdate,
 }: {
   dialogue: FeedbackDialogue;
-  onUpdate: (optionId: string, isSelected: boolean) => void;
+  onUpdate: (selectedLabels: string[], feedbackText: string) => void;
 }) {
   const [selectedOptions, setSelectedOptions] = useState<{
     [key: string]: boolean;
   }>({});
+  const [feedbackText, setFeedbackText] = useState("");
 
   const toggleOption = (optionId: string) => {
     const newState = !selectedOptions[optionId];
     setSelectedOptions({ ...selectedOptions, [optionId]: newState });
-    onUpdate(optionId, newState);
+  };
+
+  const isSubmitDisabled =
+    Object.values(selectedOptions).every((v) => !v) && !feedbackText.trim();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitDisabled) return;
+
+    const selectedLabels = dialogue.options
+      .filter((option) => selectedOptions[option.id])
+      .map((option) => option.label);
+
+    if (selectedLabels.length === 0 && !feedbackText.trim()) {
+      console.log("No options selected or feedback provided");
+      return;
+    }
+
+    onUpdate(selectedLabels, feedbackText);
+
+    // Reset state if needed
+    setSelectedOptions({});
+    setFeedbackText("");
   };
 
   return (
@@ -74,15 +98,22 @@ function FeedbackDialog({
               How can the response be improved? (optional)
             </Label>
             <Input
-              id="username"
+              id="feedbackText"
               placeholder="Your feedback..."
               className="col-span-3"
+              onChange={(e) => setFeedbackText(e.target.value)}
             />
           </div>
         </div>
-        <DialogFooter>
-          <Button type="submit">Submit</Button>
-        </DialogFooter>
+        <form onSubmit={handleSubmit}>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="submit" disabled={isSubmitDisabled}>
+                Submit
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
