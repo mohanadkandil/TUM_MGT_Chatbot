@@ -33,7 +33,7 @@ class PostgresChatMessageHistory(BaseChatMessageHistory):
         self,
         session_id: str,
         connection_string: str = conn_string,
-        table_name: str = "message_store",
+        table_name: str = "message_store_19_03_2024",
     ):
         try:
             self.connection = psycopg.connect(connection_string)
@@ -50,7 +50,10 @@ class PostgresChatMessageHistory(BaseChatMessageHistory):
         create_table_query = f"""CREATE TABLE IF NOT EXISTS {self.table_name} (
             id SERIAL PRIMARY KEY,
             session_id TEXT NOT NULL,
-            message JSONB NOT NULL
+            message JSONB NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            feedback_classification TEXT DEFAULT NULL,
+            feedback TEXT DEFAULT NULL
         );"""
         self.cursor.execute(create_table_query)
         self.connection.commit()
@@ -75,6 +78,14 @@ class PostgresChatMessageHistory(BaseChatMessageHistory):
         self.cursor.execute(
             query, (self.session_id, json.dumps(message_to_dict(message)))
         )
+        self.connection.commit()
+
+    def add_feedback_to_message(self, feedback: str, feedback_classification: str) -> None:
+        """Update the feedback for all messages in the PostgreSQL database based on session ID."""
+        query = sql.SQL("UPDATE {} SET feedback = %s, feedback_classification = %s WHERE session_id = %s;").format(
+            sql.Identifier(self.table_name)
+        )
+        self.cursor.execute(query, (feedback, feedback_classification, self.session_id))
         self.connection.commit()
 
     def clear(self) -> None:

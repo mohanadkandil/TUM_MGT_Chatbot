@@ -1,19 +1,27 @@
 "use client";
+
 import { cn } from "@/lib/utils";
 import { UseChatHelpers } from "ai/react";
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import {
+  FormEvent,
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { ChatList } from "./chat-list";
 import { QuestionsRecommendation } from "./questions-recommendation";
 import { ButtonScrollToBottom } from "./button-scroll-to-bottom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import Textarea from "react-textarea-autosize";
-import { IconPlus, IconSend } from "./icons";
+import { IconSend } from "./icons";
 import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { useToast } from "./ui/use-toast";
 import { Message } from "@/lib/types";
+import { useStreamResponse } from "@/lib/hooks/use-stream-response";
 
 export interface ChatProps extends React.ComponentProps<"div"> {
   initialMessages?: Message[];
@@ -27,7 +35,6 @@ export interface PormptProps
 }
 
 export function Chat({ id, initialMessages = [] }: ChatProps) {
-  const path = usePathname();
   const [previewToken, setPreviewToken] = useLocalStorage<string | null>(
     "ai-token",
     null
@@ -40,85 +47,85 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
   const { toast } = useToast();
   const { formRef, onKeyDown } = useEnterSubmit();
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState<string>("");
   const isLoadingRef = useRef(false);
   const initialMessagesRef = useRef(initialMessages);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
+    null
+  );
+
+  const addOrUpdateMessageInChats = (
+    messageToUpdate: Message,
+    chatId: string | number
+  ) => {
+    const chats = JSON.parse(localStorage.getItem("chats") || "{}");
+    if (!chats[chatId]) chats[chatId] = [];
+    const messageIndex = chats[chatId].findIndex(
+      (message: { id: string }) => message.id === messageToUpdate.id
+    );
+
+    if (messageIndex >= 0) {
+      chats[chatId][messageIndex] = messageToUpdate; // Update existing message
+    } else {
+      chats[chatId].push(messageToUpdate); // Add new message
+    }
+
+    localStorage.setItem("chats", JSON.stringify(chats));
+  };
+
+  const handleStreamedText = useCallback(
+    (newText: SetStateAction<string>) => {
+      setMessages((currentMessages) => {
+        const updatedMessages = currentMessages.map((msg) => {
+          if (msg.id === streamingMessageId) {
+            const updatedMessage = { ...msg, content: msg.content + newText };
+            // Persist the updated message
+            if (id !== undefined) {
+              addOrUpdateMessageInChats(updatedMessage, id);
+            }
+            return updatedMessage;
+          }
+          return msg;
+        });
+        return updatedMessages;
+      });
+    },
+    [streamingMessageId, id]
+  );
+
+  const { startStream, isLoading: isMessageLoading } = useStreamResponse({
+    streamCallback: handleStreamedText,
+  });
+
+  const startStreamWithSetup = () => {
+    const streamingMessageId = `system-${Date.now().toString()}`; // Generate a unique ID for the streaming message
+    const newMessage: Message = {
+      id: streamingMessageId,
+      content: "", // Initialize with empty content
+      role: "system",
+    };
+    setMessages((prev) => [...prev, newMessage]); // Add the new system message to the chat
+    setStreamingMessageId(streamingMessageId); // Save this ID to update the message later
+
+    // Assuming startStream is a function that begins the text streaming process
+    startStream(input); // Pass any necessary input to start the stream
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-${Date.now().toString()}`,
       content: input,
       role: "user", // or 'system', directly using the string literal
     };
     isLoadingRef.current = true;
     setMessages((prevMessages) => [...prevMessages, newMessage]);
-    addNewMessageToChats(newMessage, id);
+    addOrUpdateMessageInChats(newMessage, id as string);
+    startStreamWithSetup();
     setInput("");
-
-    const encodedQuestion = encodeURIComponent(input);
-    const url = `https://copilot-tum-mgt.de/conversation?question=${encodedQuestion}`;
-
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          conversation: [
-            {
-              role: "string", // Adjust the role as needed for your application
-              content: input,
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        content: data.answer.answer,
-        role: "system", // or 'system', directly using the string literal
-      };
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
-      addNewMessageToChats(newMessage, id);
-      isLoadingRef.current = false;
-      // Handle success response here, such as updating UI or state accordingly
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: "There was a problem with your request.",
-      });
-      isLoadingRef.current = false;
-      console.error("Error submitting question:", error);
-      // Handle error scenario, such as displaying an error message to the user
-    }
   };
-
-  const addNewMessageToChats = (
-    newMessage: Message,
-    chatId: string | number | undefined
-  ) => {
-    const chats = JSON.parse(localStorage.getItem("chats") || "{}");
-    if (chatId) {
-      const chatMessages = chats[chatId] || [];
-      chatMessages.push(newMessage);
-      chats[chatId] = chatMessages;
-    }
-    localStorage.setItem("chats", JSON.stringify(chats));
-  };
-
-  console.log("Messages ", messages);
 
   useEffect(() => {
     if (
@@ -139,7 +146,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
           </>
         ) : (
           <>
-            <div className="mx-auto max-w-5xl py-12">
+            <div className="mx-auto max-w-5xl py-12 px-12 md:px-8">
               <h1 className="text-[#3070B3] font-extrabold text-5xl">
                 Hello Penny
               </h1>
@@ -156,7 +163,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
         <ButtonScrollToBottom />
         <div className="mx-auto sm:max-w-2xl sm:px-4">
           <div className="flex items-center justify-center h-12">
-            {isLoadingRef.current ? (
+            {isMessageLoading ? (
               <Button
                 variant="outline"
                 onClick={() => stop()}
@@ -170,26 +177,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
         <div className="mx-auto sm:max-w-2xl sm:px-4">
           <div className="px-4 py-2 space-y-4 md:py-4">
             <form onSubmit={handleSubmit} ref={formRef}>
-              <div className="relative flex flex-col w-full px-8 overflow-hidden max-h-60 grow bg-background sm:border sm:rounded-2xl sm:px-12">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        router.refresh();
-                        router.push("/chat");
-                      }}
-                      className={cn(
-                        buttonVariants({ size: "sm", variant: "outline" }),
-                        "absolute left-0 top-4 size-8 rounded-full bg-background p-0 sm:left-4"
-                      )}
-                    >
-                      <IconPlus />
-                      <span className="sr-only">New Chat</span>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>New Chat</TooltipContent>
-                </Tooltip>
+              <div className="relative flex flex-col w-full px-8 overflow-hidden max-h-60 grow bg-background sm:border sm:rounded-2xl sm:px-4">
                 <Textarea
                   ref={inputRef}
                   tabIndex={0}
@@ -201,14 +189,14 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
                   spellCheck={false}
                   className="min-h-[60px] w-full resize-none bg-transparent px-4 py-[1.3rem] focus-within:outline-none sm:text-sm"
                 />
-                <div className="absolute right-0 top-3.5 sm:right-4">
+                <div className="absolute right-8 top-3.5 sm:right-4">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         type="submit"
                         variant="ghost"
                         size="icon"
-                        disabled={isLoadingRef.current || input === ""}
+                        disabled={isMessageLoading || input === ""}
                       >
                         <IconSend />
                         <span className="sr-only">Send message</span>

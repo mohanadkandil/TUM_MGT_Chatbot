@@ -1,3 +1,4 @@
+import os
 from typing import Any
 
 import weaviate.classes as wvc
@@ -36,6 +37,7 @@ class Chunk:
     hash: str | None
     url: str | None
     hits: int
+    uuid: Any  # This is a Weaviate UUID, will only be set in a query result
 
     def __init__(
         self,
@@ -50,6 +52,7 @@ class Chunk:
         hash: str | None = None,
         url: str | None = None,
         hits: int = 0,
+        uuid=None,
     ):
         self.text = text
         self.faculty = faculty
@@ -62,6 +65,7 @@ class Chunk:
         self.hash = hash
         self.url = url
         self.hits = hits
+        self.uuid = uuid
 
     def as_properties(self) -> dict[str, Any]:
         """
@@ -83,22 +87,38 @@ class Chunk:
         }
 
 
-def recreate_schema(client: WeaviateClient) -> Collection:
-    if client.collections.exists(COLLECTION_NAME):
-        client.collections.delete(COLLECTION_NAME)
-    return init_schema(client)
+def recreate_schema(client: WeaviateClient, collection_name: str) -> Collection:
+    if client.collections.exists(collection_name):
+        client.collections.delete(collection_name)
+    return create_collection_if_not_exists(client, collection_name)
 
 
-def init_schema(client: WeaviateClient) -> Collection:
-    if client.collections.exists(COLLECTION_NAME):
-        return client.collections.get(COLLECTION_NAME)
+def create_collection_if_not_exists(client: WeaviateClient, collection_name: str) -> Collection:
+    if client.collections.exists(collection_name):
+        return client.collections.get(collection_name)
+
+    resource_name = os.getenv("AZURE_OPENAI_RESOURCE_NAME")
+    deployment_id = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+    base_url = os.getenv("AZURE_OPENAI_ENDPOINT")
+    assert resource_name, "AZURE_OPENAI_RESOURCE_NAME environment variable must be set"
+    assert deployment_id, "AZURE_OPENAI_DEPLOYMENT_NAME environment variable must be set"
+    assert base_url, "AZURE_OPENAI_ENDPOINT environment variable must be set"
+
     return client.collections.create(
-        name=COLLECTION_NAME,
+        name=collection_name,
         # By specifying a vectorizer, weaviate will automatically vectorize the text content of the chunks
-        vectorizer_config=wvc.config.Configure.Vectorizer.text2vec_openai(),
+        vectorizer_config=wvc.config.Configure.Vectorizer.text2vec_azure_openai(
+            resource_name=resource_name,
+            deployment_id=deployment_id,
+            base_url=base_url,
+            vectorize_collection_name=False,
+        ),
         # HNSW is preferred over FLAT for large amounts of data, which is the case here
         vector_index_config=wvc.config.Configure.VectorIndex.hnsw(
             distance_metric=wvc.config.VectorDistances.COSINE  # select preferred distance metric
+        ),
+        inverted_index_config=wvc.config.Configure.inverted_index(
+            index_property_length=True
         ),
         # The properties are like the columns of a table in a relational database
         properties=[

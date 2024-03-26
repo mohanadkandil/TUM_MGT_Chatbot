@@ -3,7 +3,9 @@ import os
 import weaviate
 from dotenv import find_dotenv, load_dotenv
 
-from application.backend.datastore.main_data.main_data import MainData
+import application.backend.datastore.collections.main.schema as main_schema
+from application.backend.datastore.collections.main.main_data import MainDataCollection
+from application.backend.datastore.collections.user_question.user_questions import UserQuestionCollection
 
 load_dotenv(find_dotenv())
 
@@ -24,17 +26,21 @@ class ChatbotVectorDatabase:
         """
         url = os.getenv("WCS_URL")
         weaviate_api_key = os.getenv("WEAVIATE_API_KEY")
-        openai_api_key = os.getenv("OPENAI_API_KEY")
+        azure_openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
         assert url, "WEAVIATE_URL environment variable must be set"
         assert weaviate_api_key, "WEAVIATE_API_KEY environment variable must be set"
-        assert openai_api_key, "OPENAI_API_KEY environment variable must be set"
+        assert azure_openai_api_key, "AZURE_OPENAI_API_KEY environment variable must be set"
 
         self.client = weaviate.connect_to_wcs(
             cluster_url=url,
             auth_credentials=weaviate.auth.AuthApiKey(weaviate_api_key),
-            headers={"X-OpenAI-Api-Key": openai_api_key},
+            headers={"X-Azure-Api-Key": azure_openai_api_key},
         )
-        self.main = MainData(self)
+
+        self.main = MainDataCollection(main_schema.create_collection_if_not_exists(self.client, "ChatbotData"))
+        self.main_500 = MainDataCollection(main_schema.create_collection_if_not_exists(self.client, "ChatbotData500"))
+        self.main_250 = MainDataCollection(main_schema.create_collection_if_not_exists(self.client, "ChatbotData250"))
+        self.questions = UserQuestionCollection(self.client)
 
     def __del__(self):
         # Close the connection to Weaviate when the object is deleted

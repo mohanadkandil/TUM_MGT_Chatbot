@@ -20,7 +20,7 @@ export function SettingsDialog() {
           <IconSettings />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[800px] h-[550px]">
+      <DialogContent className="sm:max-w-[600px] sm-h-[500px] h-[600px]">
         <DialogHeader>
           <DialogTitle className="border-b py-4">Settings</DialogTitle>
         </DialogHeader>
