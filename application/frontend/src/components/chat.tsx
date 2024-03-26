@@ -2,7 +2,14 @@
 
 import { cn } from "@/lib/utils";
 import { UseChatHelpers } from "ai/react";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import {
+  FormEvent,
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { ChatList } from "./chat-list";
 import { QuestionsRecommendation } from "./questions-recommendation";
@@ -44,13 +51,18 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
   const [input, setInput] = useState<string>("");
   const isLoadingRef = useRef(false);
   const initialMessagesRef = useRef(initialMessages);
-  const [streamingMessageId, setStreamingMessageId] = useState(null);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
+    null
+  );
 
-  const addOrUpdateMessageInChats = (messageToUpdate, chatId) => {
+  const addOrUpdateMessageInChats = (
+    messageToUpdate: Message,
+    chatId: string | number
+  ) => {
     const chats = JSON.parse(localStorage.getItem("chats") || "{}");
     if (!chats[chatId]) chats[chatId] = [];
     const messageIndex = chats[chatId].findIndex(
-      (m) => m.id === messageToUpdate.id
+      (message: { id: string }) => message.id === messageToUpdate.id
     );
 
     if (messageIndex >= 0) {
@@ -63,13 +75,15 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
   };
 
   const handleStreamedText = useCallback(
-    (newText) => {
+    (newText: SetStateAction<string>) => {
       setMessages((currentMessages) => {
         const updatedMessages = currentMessages.map((msg) => {
           if (msg.id === streamingMessageId) {
             const updatedMessage = { ...msg, content: msg.content + newText };
             // Persist the updated message
-            addOrUpdateMessageInChats(updatedMessage, id);
+            if (id !== undefined) {
+              addOrUpdateMessageInChats(updatedMessage, id);
+            }
             return updatedMessage;
           }
           return msg;
@@ -80,17 +94,9 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     [streamingMessageId, id]
   );
 
-  const {
-    startStream,
-    isLoading: isMessageLoading,
-    responses,
-    isError,
-    streamingFinished,
-    finalAnswer,
-  } = useStreamResponse({
+  const { startStream, isLoading: isMessageLoading } = useStreamResponse({
     streamCallback: handleStreamedText,
   });
-  console.log("🚀 ~ Chat ~ finalAnswer:", finalAnswer);
 
   const startStreamWithSetup = () => {
     const streamingMessageId = `system-${Date.now().toString()}`; // Generate a unique ID for the streaming message
@@ -116,7 +122,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     };
     isLoadingRef.current = true;
     setMessages((prevMessages) => [...prevMessages, newMessage]);
-    addOrUpdateMessageInChats(newMessage, id);
+    addOrUpdateMessageInChats(newMessage, id as string);
     startStreamWithSetup();
     setInput("");
   };
@@ -130,14 +136,6 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
       initialMessagesRef.current = initialMessages;
     }
   }, [initialMessages]);
-
-  if (isError) {
-    return toast({
-      title: "There was a problem.",
-      description: "Something went wrong. Please try again.",
-      variant: "destructive",
-    });
-  }
 
   return (
     <>

@@ -1,6 +1,6 @@
 "use client";
+
 import { Chat } from "@/components/chat";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export interface ChatPageProps {
@@ -18,8 +18,6 @@ export default function ChatPage({ params }: ChatPageProps) {
     const chats = JSON.parse(window.localStorage.getItem("chats") || "{}");
     if (chats[id]) {
       setChat({ id, messages: chats[id] });
-      console.log(chats[id]);
-      console.log(chats);
     }
   }, [id]);
 
