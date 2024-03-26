@@ -10,7 +10,6 @@ export interface ChatList {
 }
 
 export function ChatList({ messages, isTriggerFeedback }: ChatList) {
-  console.log("🚀 ~ ChatList ~ isTriggerFeedback:", isTriggerFeedback);
   if (!messages.length) return null;
   return (
     <>

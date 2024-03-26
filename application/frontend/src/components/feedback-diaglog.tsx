@@ -57,7 +57,6 @@ function FeedbackDialog({
       .map((option) => option.label);
 
     if (selectedLabels.length === 0 && !feedbackText.trim()) {
-      console.log("No options selected or feedback provided");
       return;
     }
 
