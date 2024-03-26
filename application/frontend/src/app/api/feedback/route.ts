@@ -3,7 +3,7 @@ import axios from "axios";
 export async function POST(req: Request) {
   const body = await req.json()
   const { feedback_classification, feedback_text  } = body
-  const url = `${process.env.ROOTURL}/feedback`;
+  const url = "https://copilot-tum-mgt.de/feedback";
 
   try {
     const response = await axios.post(url, {
