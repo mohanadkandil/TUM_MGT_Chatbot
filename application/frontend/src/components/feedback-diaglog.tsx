@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "./ui/label";
 import { useState } from "react";
+import { useFeedbackTrigger } from "@/app/api/api";
 
 interface FeedbackDialogueOption {
   id: string;
@@ -62,10 +63,18 @@ function FeedbackDialog({
 
     onUpdate(selectedLabels, feedbackText);
 
+    triggerFeedback({
+      uuid: "",
+      feedback_classification: selectedLabels.toString(),
+      feedback_text: feedbackText,
+    });
+
     // Reset state if needed
     setSelectedOptions({});
     setFeedbackText("");
   };
+
+  const { triggerFeedback, isSuccess, isPending } = useFeedbackTrigger();
 
   return (
     <Dialog>
