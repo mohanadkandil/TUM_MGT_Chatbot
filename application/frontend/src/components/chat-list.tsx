@@ -8,6 +8,7 @@ export interface ChatList {
 }
 
 export function ChatList({ messages }: ChatList) {
+  console.log("🚀 ~ ChatList ~ messages:", messages);
   if (!messages.length) return null;
   return (
     <div className="relative mx-auto max-w-2xl px-4">
