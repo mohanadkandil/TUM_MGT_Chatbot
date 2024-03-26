@@ -14,7 +14,7 @@ export function useStreamResponse({
   const { mutate: startStream, isError } = useMutation({
     mutationFn: async (message: string) => {
       const encodedQuestion = encodeURIComponent(message);
-      const url = `${process.env.ROOTURL}/chat_stream/?question=${encodedQuestion}`;
+      const url = `https://copilot-tum-mgt.de/chat_stream/?question=${encodedQuestion}`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
