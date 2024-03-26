@@ -7,6 +7,7 @@ export function useStreamResponse({
   streamCallback: React.Dispatch<React.SetStateAction<string>>
 }) {
   const [isLoading, setIsLoading] = useState(false)
+  const [isTriggerFeedback, setIsTriggerFeedback] = useState(false)
   const [responses, setResponses] = useState("")
   const [streamingFinished, setStreamingFinished] = useState(false);
   const [finalAnswer, setFinalAnswer] = useState("")
@@ -85,6 +86,7 @@ export function useStreamResponse({
           } else if (obj && obj.type === "final" && obj.data && obj.data.       full_answer) {
             // If the data type is "final", handle the full_answer specifically
             const finalAnswer = obj.data.full_answer;
+            setIsTriggerFeedback(obj.data.feedback_trigger)
             // Assuming you want to use setResponses to store the final answer
             streamCallback(finalAnswer)
             setStreamingFinished(false)
@@ -102,5 +104,5 @@ export function useStreamResponse({
     read().catch(e => console.error("Stream reading failed:", e));
   }
 
-  return { responses, startStream, isError, isLoading, streamingFinished, finalAnswer };
+  return { responses, startStream, isError, isLoading, isTriggerFeedback, streamingFinished, finalAnswer };
 }

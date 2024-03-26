@@ -1,166 +1,66 @@
-import { Button } from "./ui/button";
+import FeedbackDialog, { FeedbackDialogue } from "./feedback-diaglog";
 import { Card, CardContent } from "./ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "./ui/label";
 
-function SatisfiedOption() {
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          😊 Very Satisfied
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>
-            Great! Would you like to share what you liked the most?
-          </DialogTitle>
-          <DialogDescription>Select all that apply. </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="flex flex-col items-start w-fit gap-4">
-            <Button variant="outline" size="sm">
-              Response speed
-            </Button>
-            <Button variant="outline" size="sm">
-              Accuracy of information
-            </Button>
-            <Button variant="outline" size="sm">
-              Interaction felt impersonal or robotic
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-2 items-center gap-2">
-            <Label htmlFor="username" className="text-left">
-              How can the response be improved? (optional)
-            </Label>
-            <Input
-              id="username"
-              placeholder="Your feedback..."
-              className="col-span-3"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="submit">Submit</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function SomewhatSatisfiedOption() {
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          😊 Very Satisfied
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>What aspects of the service met your needs?</DialogTitle>
-          <DialogDescription>Select all that apply. </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="flex flex-col items-start w-fit gap-4">
-            <Button variant="outline" size="sm">
-              Responses were too slow
-            </Button>
-            <Button variant="outline" size="sm">
-              Did not find what I was looking for
-            </Button>
-            <Button variant="outline" size="sm">
-              Did not find what I was looking for
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 items-center gap-2">
-            <Label htmlFor="username" className="text-left">
-              How can the response be improved? (optional)
-            </Label>
-            <Input
-              id="username"
-              placeholder="Your feedback..."
-              className="col-span-3"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="submit">Submit</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function NotSatisfiedOption() {
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          😊 Very Satisfied
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>
-            Great! Would you like to share what you liked the most?
-          </DialogTitle>
-          <DialogDescription>Select all that apply. </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="flex flex-col items-start w-fit gap-4">
-            <Button variant="outline" size="sm">
-              The clarity of the information provided
-            </Button>
-            <Button variant="outline" size="sm">
-              The comprehensive coverage of topics
-            </Button>
-            <Button variant="outline" size="sm">
-              The speed of the response
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 items-center gap-2">
-            <Label htmlFor="username" className="text-left">
-              Other (please specify)
-            </Label>
-            <Input
-              id="username"
-              placeholder="Your feedback..."
-              className="col-span-3"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="submit">Submit</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// Define a type for the feedback Dialogues
+const feedbackDialogues: FeedbackDialogue[] = [
+  {
+    id: "resolved",
+    description: "Great! What did you like the most?",
+    buttonTitle: "👏 Fully Resolved!",
+    options: [
+      { id: "clarity", label: "The clarity of the information provided" },
+      { id: "coverage", label: "The comprehensive coverage of topics" },
+      { id: "speed", label: "The speed of the response" },
+    ],
+  },
+  {
+    id: "improvement",
+    description: "How can we improve?",
+    buttonTitle: "🤔 Okay, but could be better",
+    options: [
+      { id: "responseTime", label: "Faster response times" },
+      { id: "accuracy", label: "More accurate information" },
+      { id: "instructions", label: "Clearer instructions" },
+    ],
+  },
+  {
+    id: "disappointment",
+    description: "Sorry. Please help us understand the issues.",
+    buttonTitle: "🤔 Okay, but could be better",
+    options: [
+      { id: "understanding", label: "My issue was not understood" },
+      { id: "notResolved", label: "My issue was not resolved" },
+      { id: "responseTime", label: "The response took too long" },
+      { id: "unclear", label: "The instructions were unclear" },
+      {
+        id: "technicalProblems",
+        label: "I had technical problems with the service",
+      },
+    ],
+  },
+];
 
 export function ChatFeedback() {
+  const handleUpdate = (optionId: string, isSelected: boolean) => {
+    console.log("Option selected:", optionId, isSelected);
+    // Implement your logic for handling option selection
+  };
+
   return (
-    <div className="flex sm:pb-8 pb-16">
-      <Card className="absolute w-full mx-auto">
-        <CardContent className="flex flex-row items-center justify-center h-full py-4">
+    <div className="sm:pb-8 pb-16">
+      <Card className="mx-auto">
+        <CardContent className="flex flex-row flex-wrap items-center justify-center h-full py-4 p-3 w-full">
           <span className="text-sm font-medium text-center whitespace-nowrap mr-2">
             Did we resolve your issue today?
           </span>
           <div className="flex items-center gap-2 justify-center">
-            <SatisfiedOption />
-            <SomewhatSatisfiedOption />
-            <NotSatisfiedOption />
+            {feedbackDialogues.map((dialogue) => (
+              <FeedbackDialog
+                key={dialogue.id}
+                dialogue={dialogue}
+                onUpdate={handleUpdate}
+              />
+            ))}
           </div>
         </CardContent>
       </Card>
