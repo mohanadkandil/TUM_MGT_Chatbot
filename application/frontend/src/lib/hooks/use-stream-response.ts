@@ -1,8 +1,6 @@
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
-interface UseStreamResponseParams {
-  streamCallback: (newText: string) => void;
-}
+
 export function useStreamResponse({
   streamCallback,
 }: {

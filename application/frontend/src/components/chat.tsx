@@ -3,7 +3,6 @@
 import { cn } from "@/lib/utils";
 import { UseChatHelpers } from "ai/react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { ChatList } from "./chat-list";
 import { QuestionsRecommendation } from "./questions-recommendation";
@@ -15,7 +14,7 @@ import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
 import { Button } from "@/components/ui/button";
 import { useToast } from "./ui/use-toast";
 import { Message } from "@/lib/types";
-import { useStreamResponse } from "@/app/api/api";
+import { useStreamResponse } from "@/lib/hooks/use-stream-response";
 
 export interface ChatProps extends React.ComponentProps<"div"> {
   initialMessages?: Message[];
@@ -41,15 +40,11 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
   const { toast } = useToast();
   const { formRef, onKeyDown } = useEnterSubmit();
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
-  console.log("🚀 ~ Chat ~ messages:", messages);
   const [input, setInput] = useState<string>("");
   const isLoadingRef = useRef(false);
   const initialMessagesRef = useRef(initialMessages);
-  const [streamedText, setStreamedText] = useState("");
   const [streamingMessageId, setStreamingMessageId] = useState(null);
-  const [streaming, setStreaming] = useState(false); // New state to track if streaming is active
 
   const addOrUpdateMessageInChats = (messageToUpdate, chatId) => {
     const chats = JSON.parse(localStorage.getItem("chats") || "{}");
