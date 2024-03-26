@@ -94,7 +94,11 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     [streamingMessageId, id]
   );
 
-  const { startStream, isLoading: isMessageLoading } = useStreamResponse({
+  const {
+    startStream,
+    isLoading: isMessageLoading,
+    isTriggerFeedback,
+  } = useStreamResponse({
     streamCallback: handleStreamedText,
   });
 
@@ -142,7 +146,10 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
       <div className={cn("pb-[200px] pt-4 md:pt-10")}>
         {messages.length ? (
           <>
-            <ChatList messages={messages} />
+            <ChatList
+              messages={messages}
+              isTriggerFeedback={isTriggerFeedback}
+            />
           </>
         ) : (
           <>

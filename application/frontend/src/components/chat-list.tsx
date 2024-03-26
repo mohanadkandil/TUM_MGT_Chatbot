@@ -10,10 +10,11 @@ export interface ChatList {
 }
 
 export function ChatList({ messages, isTriggerFeedback }: ChatList) {
+  console.log("🚀 ~ ChatList ~ isTriggerFeedback:", isTriggerFeedback);
   if (!messages.length) return null;
   return (
     <>
-      <div className="relative mx-auto max-w-2xl px-4">
+      <div className="relative mx-auto max-w-3xl px-4">
         {messages.map((message, index) => (
           <div key={index}>
             <ChatMessage message={message} />
@@ -25,7 +26,7 @@ export function ChatList({ messages, isTriggerFeedback }: ChatList) {
         ))}
       </div>
       <div className="flex w-full justify-center">
-        {!isTriggerFeedback ? <ChatFeedback /> : null}
+        {isTriggerFeedback ? <ChatFeedback /> : null}
       </div>
     </>
   );

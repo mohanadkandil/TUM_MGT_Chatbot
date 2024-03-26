@@ -11,10 +11,10 @@ export function useStreamResponse({
   const [responses, setResponses] = useState("")
   const [streamingFinished, setStreamingFinished] = useState(false);
   const [finalAnswer, setFinalAnswer] = useState("")
-  const { mutate: startStream, isError, isPending } = useMutation({
+  const { mutate: startStream, isError } = useMutation({
     mutationFn: async (message: string) => {
       const encodedQuestion = encodeURIComponent(message);
-      const url = `https://copilot-tum-mgt.de/chat_stream/?question=${encodedQuestion}`;
+      const url = `${process.env.ROOTURL}/chat_stream/?question=${encodedQuestion}`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
