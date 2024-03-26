@@ -41,8 +41,9 @@ const feedbackDialogues: FeedbackDialogue[] = [
 ];
 
 export function ChatFeedback() {
-  const handleUpdate = (optionId: string, isSelected: boolean) => {
-    console.log("Option selected:", optionId, isSelected);
+  const handleUpdate = (selectedLabels: string[], feedbackText: string) => {
+    console.log("Selected labels:", selectedLabels);
+    console.log("Feedback text:", feedbackText);
     // Implement your logic for handling option selection
   };
 
