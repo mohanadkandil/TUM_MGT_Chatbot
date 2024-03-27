@@ -18,11 +18,21 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import Textarea from "react-textarea-autosize";
 import { IconSend } from "./icons";
 import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "./ui/use-toast";
 import { Message } from "@/lib/types";
 import { useStreamResponse } from "@/lib/hooks/use-stream-response";
 import { useSelectedQuestionStore } from "@/lib/stores/useSelectedQuestionStore";
+import MajorsFilter from "./majors-filter";
 
 export interface ChatProps extends React.ComponentProps<"div"> {
   initialMessages?: Message[];
@@ -152,6 +162,9 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
 
   return (
     <>
+      <div className="flex w-full mx-auto max-w-3xl justify-end pt-4 md:pt-10">
+        <MajorsFilter />
+      </div>
       <div className={cn("pb-[200px] pt-4 md:pt-10")}>
         {messages.length ? (
           <>
