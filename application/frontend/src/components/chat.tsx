@@ -162,9 +162,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
 
   return (
     <>
-      <div className="flex w-full mx-auto max-w-3xl justify-end pt-4 md:pt-10">
-        <MajorsFilter />
-      </div>
+      <MajorsFilter />
       <div className={cn("pb-[200px] pt-4 md:pt-10")}>
         {messages.length ? (
           <>

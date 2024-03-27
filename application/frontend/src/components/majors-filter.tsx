@@ -68,8 +68,6 @@ const majors: Major[] = [
     name: "Master Computer Science",
     category: "Master Programs",
   },
-
-  // Add more majors here...
 ];
 
 function MajorsFilter() {
