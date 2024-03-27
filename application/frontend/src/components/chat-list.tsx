@@ -25,7 +25,7 @@ export function ChatList({ messages, isTriggerFeedback }: ChatList) {
         ))}
       </div>
       <div className="flex w-full justify-center">
-        {!isTriggerFeedback ? <ChatFeedback /> : null}
+        {isTriggerFeedback ? <ChatFeedback /> : null}
       </div>
     </>
   );
