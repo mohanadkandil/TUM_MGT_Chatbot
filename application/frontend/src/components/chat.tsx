@@ -18,16 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import Textarea from "react-textarea-autosize";
 import { IconSend } from "./icons";
 import { useEnterSubmit } from "@/lib/hooks/use-enter-submit";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { useToast } from "./ui/use-toast";
 import { Message } from "@/lib/types";
 import { useStreamResponse } from "@/lib/hooks/use-stream-response";
