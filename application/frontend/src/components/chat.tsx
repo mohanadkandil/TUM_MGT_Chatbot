@@ -162,13 +162,12 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
           </>
         ) : (
           <>
-            <div className="mx-auto max-w-5xl py-12 px-12 md:px-8">
-              <h1 className="text-[#3070B3] font-extrabold text-5xl">
+            <div className="mx-auto max-w-5xl pb-12 px-12 md:px-8">
+              <h1 className="custom-text-gradient font-extrabold text-[40px]">
                 Hello Penny
               </h1>
-              <p className="pt-4 text-slate-600 text-xl">
-                Ask TUM-specific questions here. Get quick answers on courses,
-                admin, and more.
+              <p className="text-[#C1C1C1] text-[40px] font-semibold">
+                Any school-related questions? Just ask.
               </p>
             </div>
             <QuestionsRecommendation />
