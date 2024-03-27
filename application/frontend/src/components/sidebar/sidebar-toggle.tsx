@@ -4,20 +4,20 @@ import * as React from "react";
 
 import { useSidebar } from "@/lib/hooks/use-sidebar";
 import { Button } from "@/components/ui/button";
-import { IconSidebar } from "../icons";
+import { IconThreeDots } from "../icons";
 
 export function SidebarToggle() {
   const { toggleSidebar } = useSidebar();
 
   return (
     <Button
-      variant="ghost"
-      className="-ml-2 hidden size-9 p-0 lg:flex"
+      variant="link"
+      className="ml-2 size-6 p-0 absolute left-[100%] top-1/2 dark:text-slate-400 dark:hover:text-white"
       onClick={() => {
         toggleSidebar();
       }}
     >
-      <IconSidebar className="size-6" />
+      <IconThreeDots className="size-6 " />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );

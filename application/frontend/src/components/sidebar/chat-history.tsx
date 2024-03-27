@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { SidebarList } from "./sidebar-list";
 import { buttonVariants } from "../ui/button";
 import { IconPencil, IconTUMLogo } from "../icons";
+import { SidebarToggle } from "./sidebar-toggle";
 
 export async function ChatHistory() {
   return (
@@ -36,6 +37,7 @@ export async function ChatHistory() {
         }
       >
         <SidebarList />
+        <SidebarToggle />
       </React.Suspense>
     </div>
   );
