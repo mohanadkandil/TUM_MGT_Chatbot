@@ -81,10 +81,10 @@ function MajorsFilter() {
   return (
     <div className="flex w-full mx-auto max-w-3xl justify-end py-4 md:py-8 px-10 md:px-0">
       <Select>
-        <SelectTrigger className="w-[204px]">
+        <SelectTrigger className="w-[204px] border-foreground">
           <SelectValue placeholder="Select your program" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="bg-background">
           {Object.entries(groupedMajors).map(([category, majorsInCategory]) => (
             <SelectGroup key={category}>
               <SelectLabel>{category}</SelectLabel>
