@@ -226,6 +226,20 @@ class Chatbot:
             print(f"Inputs: {_inputs}")
             print("-------------------") """
 
+            context = ""
+            look_up_table = {}
+
+            docs_from_vdb = self.chatvec.main.search(
+                query=keyword_string if keyword_string else question,
+                k=3,
+                language=language_of_query,
+                degree_programs=degree_program,
+            )
+
+            for i, res in enumerate(docs_from_vdb):
+                context += f"{res.text}, {res.subtopic}, Document Index: {i}\n"
+                look_up_table[i] = {"title": res.title, "url": res.url}
+
             _context = {
                 "context": lambda x: " ".join(
                     [
