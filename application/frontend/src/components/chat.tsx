@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "./ui/use-toast";
 import { Message } from "@/lib/types";
 import { useStreamResponse } from "@/lib/hooks/use-stream-response";
+import { useSelectedQuestionStore } from "@/lib/stores/useSelectedQuestionStore";
 
 export interface ChatProps extends React.ComponentProps<"div"> {
   initialMessages?: Message[];
@@ -54,6 +55,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
     null
   );
+  const { selectedQuestion, setSelectedQuestion } = useSelectedQuestionStore();
 
   const addOrUpdateMessageInChats = (
     messageToUpdate: Message,
@@ -140,6 +142,13 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
       initialMessagesRef.current = initialMessages;
     }
   }, [initialMessages]);
+
+  useEffect(() => {
+    if (selectedQuestion) {
+      setInput(selectedQuestion);
+      setSelectedQuestion("");
+    }
+  }, [selectedQuestion, setInput, setSelectedQuestion]);
 
   return (
     <>
