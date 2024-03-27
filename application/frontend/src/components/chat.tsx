@@ -191,12 +191,14 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
                   onKeyDown={onKeyDown}
                   rows={1}
                   value={input}
+                  maxLength={1000}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Message TUM.Chat"
                   spellCheck={false}
-                  className="min-h-[60px] w-full resize-none bg-transparent px-4 py-[1.3rem] focus-within:outline-none sm:text-sm"
+                  className="min-h-[60px] w-full resize-none bg-transparent pr-28 py-[1.3rem] focus-within:outline-none sm:text-sm"
                 />
-                <div className="absolute right-8 top-3.5 sm:right-4">
+                <div className="absolute right-8 top-3.5 sm:right-4 flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">{`${input.length}/1000`}</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
