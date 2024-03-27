@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSelectedMajorStore } from "@/lib/stores/useSelectedMajorStore";
 
 // Define a TypeScript interface for the Major
 interface Major {
@@ -31,7 +32,7 @@ const majors: Major[] = [
   {
     id: "BSM",
     name: "Bachelor Sustainable Management",
-    category: "Master Programs",
+    category: "Bachelor Programs",
   },
   {
     id: "MMT",
@@ -70,18 +71,32 @@ const majors: Major[] = [
   },
 ];
 
-function MajorsFilter() {
+function MajorsFilter({ isFetchingResponse }: { isFetchingResponse: boolean }) {
   // You can filter and map over the majors array to dynamically generate your select options
+  const setSelectedMajor = useSelectedMajorStore(
+    (state) => state.setSelectedMajor
+  );
+
   const groupedMajors = majors.reduce<Record<string, Major[]>>((acc, major) => {
     acc[major.category] = acc[major.category] || [];
     acc[major.category].push(major);
     return acc;
   }, {});
 
+  const handleMajorSelection = (value: string) => {
+    const selectedMajor = majors.find((major) => major.id === value);
+    if (selectedMajor) {
+      setSelectedMajor(selectedMajor.name);
+    }
+  };
+
   return (
     <div className="flex w-full mx-auto max-w-3xl justify-end py-4 md:py-8 px-10 md:px-0">
-      <Select>
-        <SelectTrigger className="w-[204px] border-foreground">
+      <Select onValueChange={handleMajorSelection}>
+        <SelectTrigger
+          className="w-[204px] border-foreground"
+          disabled={isFetchingResponse}
+        >
           <SelectValue placeholder="Select your program" />
         </SelectTrigger>
         <SelectContent className="bg-background">
