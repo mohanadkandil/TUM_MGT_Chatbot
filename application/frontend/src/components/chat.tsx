@@ -189,10 +189,10 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
             ) : null}
           </div>
         </div>
-        <div className="mx-auto sm:max-w-2xl sm:px-4">
+        <div className="mx-auto sm:max-w-5xl sm:px-4">
           <div className="px-4 py-2 space-y-4 md:py-4">
             <form onSubmit={handleSubmit} ref={formRef}>
-              <div className="relative flex flex-col w-full px-8 overflow-hidden max-h-60 grow bg-background sm:border sm:rounded-2xl sm:px-4">
+              <div className="relative flex flex-col w-full px-8 overflow-hidden max-h-60 grow bg-background sm:border sm:rounded-full sm:px-4 mb-2">
                 <Textarea
                   ref={inputRef}
                   tabIndex={0}
@@ -201,7 +201,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
                   value={input}
                   maxLength={1000}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Message TUM.Chat"
+                  placeholder="Ask TUM.Chat for school-related questions"
                   spellCheck={false}
                   className="min-h-[60px] w-full resize-none bg-transparent pr-28 py-[1.3rem] focus-within:outline-none sm:text-sm"
                 />
@@ -223,6 +223,11 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
                   </Tooltip>
                 </div>
               </div>
+              <p className="text-slate-400 font-medium text-xs px-3 text-center">
+                TUM.chat is your assistant for school-related topics only. It’s
+                not equipped for general chit-chat, general knowledge
+                acquisition or any non-university topics.
+              </p>
             </form>
           </div>
         </div>
