@@ -47,7 +47,7 @@ export function ChatFeedback() {
 
   return (
     <div className="sm:pb-8 pb-16">
-      <Card className="mx-auto">
+      <Card className="mx-auto bg-card">
         <CardContent className="flex flex-row flex-wrap items-center justify-center h-full py-4">
           <span className="text-sm font-medium text-center whitespace-nowrap mr-2">
             Did we resolve your issue today?

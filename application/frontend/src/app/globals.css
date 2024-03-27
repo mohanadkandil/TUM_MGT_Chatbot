@@ -7,7 +7,7 @@
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
-    --card: 0 0% 100%;
+    --card: 211, 81%, 56%, 0.05;
     --card-foreground: 222.2 84% 4.9%;
  
     --popover: 0 0% 100%;
@@ -36,10 +36,10 @@
   }
  
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 240, 3%, 8%, 1;
+    --foreground: 0, 0%, 100%;
  
-    --card: 222.2 84% 4.9%;
+    --card: 210, 3%, 12%, 1;
     --card-foreground: 210 40% 98%;
  
     --popover: 222.2 84% 4.9%;
@@ -60,7 +60,7 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
  
-    --border: 217.2 32.6% 17.5%;
+    --border: 210, 3%, 12%, 1;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
   }
@@ -73,4 +73,8 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.custom-text-gradient {
+  @apply bg-clip-text text-transparent bg-text-gradient;
 }
