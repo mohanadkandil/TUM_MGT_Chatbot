@@ -23,6 +23,8 @@ import { useToast } from "./ui/use-toast";
 import { Message } from "@/lib/types";
 import { useStreamResponse } from "@/lib/hooks/use-stream-response";
 import { useSelectedQuestionStore } from "@/lib/stores/useSelectedQuestionStore";
+import MajorsFilter from "./majors-filter";
+import { useSelectedMajorStore } from "@/lib/stores/useSelectedMajorStore";
 
 export interface ChatProps extends React.ComponentProps<"div"> {
   initialMessages?: Message[];
@@ -55,7 +57,9 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
     null
   );
+  const [major, setMajor] = useState("");
   const { selectedQuestion, setSelectedQuestion } = useSelectedQuestionStore();
+  const { selectedMajor, setSelectedMajor } = useSelectedMajorStore();
 
   const addOrUpdateMessageInChats = (
     messageToUpdate: Message,
@@ -115,7 +119,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     setStreamingMessageId(streamingMessageId); // Save this ID to update the message later
 
     // Assuming startStream is a function that begins the text streaming process
-    startStream(input); // Pass any necessary input to start the stream
+    startStream({ message: input, major });
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -150,8 +154,16 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
     }
   }, [selectedQuestion, setInput, setSelectedQuestion]);
 
+  useEffect(() => {
+    if (selectedMajor) {
+      setMajor(selectedMajor);
+      setSelectedMajor("");
+    }
+  }, [selectedMajor]);
+
   return (
     <>
+      <MajorsFilter isFetchingResponse={isMessageLoading} />
       <div className={cn("pb-[200px] pt-4 md:pt-10")}>
         {messages.length ? (
           <>

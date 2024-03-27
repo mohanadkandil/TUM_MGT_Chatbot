@@ -12,25 +12,25 @@ export function useStreamResponse({
   const [streamingFinished, setStreamingFinished] = useState(false);
   const [finalAnswer, setFinalAnswer] = useState("")
   const { mutate: startStream, isError } = useMutation({
-    mutationFn: async (message: string) => {
-      const encodedQuestion = encodeURIComponent(message);
-      const url = `https://copilot-tum-mgt.de/chat_stream/?question=${encodedQuestion}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          conversation: [
-            {
-              role: "string", 
-              content: message,
-            },
-          ],
-          "uuid": "string",
-          "study_program": "string"
-        }),
+      mutationFn: async ({message, major} : {message: string, major: string}) => {
+        const encodedQuestion = encodeURIComponent(message);
+        const url = `https://copilot-tum-mgt.de/chat_stream/?question=${encodedQuestion}`;
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            conversation: [
+              {
+                role: "string", 
+                content: message,
+              },
+            ],
+            "uuid": "string",
+            "study_program": major
+          }),
       })
 
       if (!response.body) {
