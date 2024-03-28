@@ -69,6 +69,11 @@ const majors: Major[] = [
     name: "Master Computer Science",
     category: "Master Programs",
   },
+  {
+    id: "none",
+    name: "None",
+    category: "none",
+  },
 ];
 
 function MajorsFilter({ isFetchingResponse }: { isFetchingResponse: boolean }) {
@@ -102,7 +107,7 @@ function MajorsFilter({ isFetchingResponse }: { isFetchingResponse: boolean }) {
         <SelectContent className="bg-background">
           {Object.entries(groupedMajors).map(([category, majorsInCategory]) => (
             <SelectGroup key={category}>
-              <SelectLabel>{category}</SelectLabel>
+              <SelectLabel>{category ? category !== "none" : null}</SelectLabel>
               {majorsInCategory.map((major) => (
                 <SelectItem key={major.id} value={major.id}>
                   {major.name}
