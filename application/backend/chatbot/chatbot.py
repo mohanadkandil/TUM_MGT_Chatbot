@@ -270,7 +270,7 @@ class Chatbot:
                 {
                     "context": _context,
                     "question": RunnablePassthrough(),
-                    "chat_history": RunnablePassthrough(),
+                    "chat_history": lambda x: history,
                     "few_shot_qa_pairs": lambda x: few_shot_qa_pairs,
                 }
                 | ANSWER_PROMPT
