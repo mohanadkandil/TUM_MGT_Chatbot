@@ -5,15 +5,14 @@ from langchain.prompts import PromptTemplate
 # TODO: ADD filter when TUM = false returned, just make normal AI call (potentially just standard answer) and tell the AI to not retrieve context.
 
 first_filter_template = """
-    
+    <instructions>
     You're given a question and a chat history and need to decide 4 things about it:
 
     Decide if the question is not TUM related or contains sensitive topics based on the chat history. Here is what you need to do exactly:
     
-    1. If there is something that specifically rules out that the question is about the Technical University of Munich (TUM), add "is_tum: false" to the JSON. Otherwise, add "is_tum: true". 
+    1. If there is something that specifically rules out that the question based on the chat history is about the Technical University of Munich (TUM), add "is_tum: false" to the JSON. Otherwise, add "is_tum: true". 
     
     2. Assess if the question has an inherently super sensitive topic. If it does, add "is_sensitive: true" to the JSON. Otherwise, add "is_sensitive: false".
-    If the question is sensitive and also not related to TUM, you should always return "is_tum: true" and "is_sensitive: true" to avoid any potential sensitive information being handled by the non-tum case.
     
     3. Assess the question's language. If it's in English, add "language: English" to the JSON. If it's in German, add "language: German" to the JSON.
 
@@ -25,14 +24,11 @@ first_filter_template = """
         "is_sensitive": boolean,
         "language": string,
         "keywords": string
-        
-    Chat History:
+    </instructions>
 
     <chat_history>
     {history}
     </chat_history>
-
-    Question:
     
     <question>
     {question}

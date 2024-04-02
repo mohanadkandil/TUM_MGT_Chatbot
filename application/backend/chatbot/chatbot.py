@@ -167,10 +167,10 @@ class Chatbot:
         self, question: str, conversation: Conversation, study_program: str = ""
     ):
         """
-        Chat with the chatbot
+        Stream chat with the chatbot
         :param question: The question to ask the chatbot
         :param chat_history: The chat history
-        :return: The chatbot's answer and the session id
+        :yield: The chatbot's answer, the session id, and the feedback trigger
         """
         print(conversation)
         llm = AzureChatOpenAI(
@@ -214,18 +214,6 @@ class Chatbot:
             print(f"Few shot QA pairs: {few_shot_qa_pairs}")
             print("-------------------")
 
-            """ _inputs = RunnableParallel(
-                standalone_answer=RunnablePassthrough.assign(
-                    chat_history=lambda x: self._format_chat_history(x["chat_history"])
-                )
-                | CONDENSE_QUESTION_PROMPT
-                | llm
-                | StrOutputParser(),
-            )
-            print("Type, ", type(_inputs))
-            print(f"Inputs: {_inputs}")
-            print("-------------------") """
-
             context = ""
             look_up_table = {}
 
@@ -252,8 +240,6 @@ class Chatbot:
                         )
                     ]
                 ),
-                # "question": itemgetter("question"),  # itemgetter("standalone_question")
-                # "few_shot_qa_pairs": itemgetter("few_shot_qa_pairs"),
             }
 
             chunks = self.chatvec.main.search(
@@ -286,8 +272,6 @@ class Chatbot:
                 data_to_send = {"type": "stream", "data": chunk}
                 yield f"{json.dumps(data_to_send)}\n\n"
                 answer += chunk
-
-            print(f"Answer from streaming: {answer}")
 
             self.postgres_history.add_user_message(question)
             self.postgres_history.add_ai_message(answer)
