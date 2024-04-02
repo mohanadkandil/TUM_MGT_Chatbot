@@ -19,6 +19,7 @@ llm = AzureChatOpenAI(
     azure_endpoint=azure_endpoint,
     openai_api_key=openai_api_key,
 )
+import re
 
 
 def parse_and_filter_question(
@@ -62,7 +63,12 @@ def parse_and_filter_question(
 
     keywords = parsed_response.get("keywords", "")
 
-    return {"answer": None, "decision": "continue", "language": language, "keywords": keywords}
+    return {
+        "answer": None,
+        "decision": "continue",
+        "language": language,
+        "keywords": keywords,
+    }
 
 
 def get_qa_pairs(degree_program: str, language: str) -> str:
@@ -110,3 +116,59 @@ def get_feedback_trigger(question: str, answer: str, llm: AzureChatOpenAI) -> di
     feedback_trigger = json_parser.parse(response.content)
 
     return feedback_trigger
+
+
+def map_study_program(full_name):
+    # Mapping of full program names to abbreviations
+    program_mapping = {
+        "Management & Technology - Munich": "BMT",
+        "Management & Technology - Heilbronn": "BMT Heilbronn",
+        "Bachelor Sustainable Management & Technology": "BSMT",
+        "Master Management & Technology": "MMT",
+        "Master Management & Digital Technology - Heilbronn": "MMDT Heilbronn",
+        "Master Management - Munich": "MiM",
+        "Master Management - Heilbronn": "MiM Heilbronn",
+        "Master Finance & Information Technology": "FIM",
+        "Master Computer Science": "MCS",
+        "Master Sustainable Management & Technology": "MSMT",
+        "Doctorate Program": "PHD",
+    }
+
+    # Find the abbreviation for a given full program name
+    for program, abbreviation in program_mapping.items():
+        if full_name == program:
+            print(abbreviation)
+            return abbreviation
+
+    # Return "Unknown Abbreviation" if the full name is not in the mapping
+    return ""
+
+
+def extract_documents(text, look_up_table):
+    """
+    Extract numbers from text and retrieve corresponding documents from the lookup table along with their index.
+
+    Parameters:
+    - text: str, the input text from which to extract numbers enclosed in square brackets.
+    - look_up_table: dict, a lookup table where keys are numbers (as strings or ints) and
+                     values are dicts with 'title', 'url', and possibly other metadata.
+
+    Returns:
+    - A list of dicts, each containing the 'index', 'title', and 'url' of a document from the lookup table.
+    """
+    # Regular expression to find numbers enclosed in square brackets
+    pattern = r"\[([0-9]+)\]"
+
+    # Find all matches of the pattern in the text
+    matches = re.findall(pattern, text)
+
+    # Retrieve documents from the lookup table along with their index
+    documents_with_index = []
+    for match in matches:
+        index = int(match)  # Convert match to integer for lookup
+        document = look_up_table.get(index)
+        if document:
+            # Append document info along with its index to the result list
+            documents_with_index.append({"index": index, **document})
+
+    return documents_with_index

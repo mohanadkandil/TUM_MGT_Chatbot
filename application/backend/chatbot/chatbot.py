@@ -22,6 +22,8 @@ from application.backend.chatbot.utils import (
     parse_and_filter_question,
     get_qa_pairs,
     get_feedback_trigger,
+    map_study_program,
+    extract_documents
 )
 
 load_dotenv(find_dotenv())
@@ -96,7 +98,9 @@ class Chatbot:
 
         # to-do: get degree program from frontend
         language_of_query = "English"  # first_filter_result.get("language", "English")
-        degree_program = study_program
+        degree_program = map_study_program(study_program)
+        print(f"Degree program: {degree_program}")
+
         keyword_string = first_filter_result.get("keywords", "")
 
         print(f"keyword_string: {keyword_string}")
@@ -204,7 +208,10 @@ class Chatbot:
             yield f"{json.dumps(final_data)}\n\n"
         else:
             language_of_query = first_filter_result.get("language", "English")
-            degree_program = study_program
+            degree_program = map_study_program(study_program)
+            
+            print(f"Degree program: {degree_program}")
+            print("-------------------")
             keyword_string = first_filter_result.get("keywords", "")
 
             print(f"keyword_string: {keyword_string}")
@@ -214,61 +221,37 @@ class Chatbot:
             print(f"Few shot QA pairs: {few_shot_qa_pairs}")
             print("-------------------")
 
-            """ _inputs = RunnableParallel(
-                standalone_answer=RunnablePassthrough.assign(
-                    chat_history=lambda x: self._format_chat_history(x["chat_history"])
-                )
-                | CONDENSE_QUESTION_PROMPT
-                | llm
-                | StrOutputParser(),
-            )
-            print("Type, ", type(_inputs))
-            print(f"Inputs: {_inputs}")
-            print("-------------------") """
 
             context = ""
             look_up_table = {}
 
             docs_from_vdb = self.chatvec.main.search(
-                query=keyword_string if keyword_string else question,
+                query=question,
                 k=3,
                 language=language_of_query,
                 degree_programs=degree_program,
             )
-
+            
+            
             for i, res in enumerate(docs_from_vdb):
-                context += f"{res.text}, {res.subtopic}, Document Index: {i}\n"
-                look_up_table[i] = {"title": res.title, "url": res.url}
+                context += f"Document Index: {i+1}, {res.text.replace("\n", " ")}, {res.subtopic} \n"
+                look_up_table[i+1] = {"title": res.title, "url": res.url}
 
+            print(f"look_up_table: {look_up_table}")
+            print("-------------------")
+            
+            
             _context = {
-                "context": lambda x: " ".join(
-                    [
-                        f"{res.text}, {res.subtopic}, {res.url}"
-                        for res in self.chatvec.main.search(
-                            query=keyword_string if keyword_string else question,
-                            k=3,
-                            language=language_of_query,
-                            degree_programs=degree_program,
-                        )
-                    ]
-                ),
-                # "question": itemgetter("question"),  # itemgetter("standalone_question")
+                "context": context     # "question": itemgetter("question"),  # itemgetter("standalone_question")
                 # "few_shot_qa_pairs": itemgetter("few_shot_qa_pairs"),
             }
+            print(f"_context: {_context}")
 
-            chunks = self.chatvec.main.search(
-                query=question,
-                k=3,
-                language=language_of_query,
-            )
-
-            for chunk in chunks:
-                print(chunk.text)
-                print("-------------------")
+            
 
             conversational_qa_chain = (
                 {
-                    "context": _context,
+                    "context": lambda x: _context,
                     "question": RunnablePassthrough(),
                     "chat_history": RunnablePassthrough(),
                     "few_shot_qa_pairs": lambda x: few_shot_qa_pairs,
@@ -295,12 +278,15 @@ class Chatbot:
             feedback_trigger = get_feedback_trigger(question, answer, llm)
             print(f"Feedback trigger: {feedback_trigger}")
 
+            
+            
             final_data = {
                 "type": "final",
                 "data": {
                     "session_id": self.postgres_history.session_id,
                     "full_answer": answer,
                     "feedback_trigger": feedback_trigger.get("trigger_feedback", False),
+                    "referenced documents": extract_documents(answer, look_up_table)
                 },
             }
 

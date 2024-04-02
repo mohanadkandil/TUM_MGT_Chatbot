@@ -67,12 +67,12 @@ A previous function has retrieved the following information from the Chatbot dat
     {context}
     </context>
 
-    Use the provided information to give the user the most specific answer. 
+    Use the provided information to give the user the most specific answer. If you use a certain context for answering the question please put it the end of the corresponding sentence in the following way '[x]' with the number it has. 
     If you cannot find the answer in the provided context, you can use your best knowledge to answer the question if you are 100 percent sure.
     IF you are not 100 percent sure YOU MUST tell the user that currently the information required to answer the question is not yet present in your database but the user can 
     share their feedback in the next message which will help the chatbot team to update the database with the required info. 
     
-    If you can answer the question given your context, Always provide the links after the relevant sentence that you used for your answer.
+    If you can answer the question given the context, always provide the corresponding "Document Index" in the following way '[x]' with the number where you took the information from.
 
     YOU MUST only provide contact persons if you can find specific informations related to the questions in the context. DO NOT just list any information that you think is correct.
 
