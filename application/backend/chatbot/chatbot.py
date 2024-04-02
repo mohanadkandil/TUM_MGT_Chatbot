@@ -270,7 +270,7 @@ class Chatbot:
                 {
                     "context": _context,
                     "question": RunnablePassthrough(),
-                    "chat_history": lambda x: history,
+                    "chat_history": RunnablePassthrough(),
                     "few_shot_qa_pairs": lambda x: few_shot_qa_pairs,
                 }
                 | ANSWER_PROMPT
@@ -281,7 +281,7 @@ class Chatbot:
             answer = ""
 
             async for chunk in conversational_qa_chain.astream(
-                {"question": question, "chat_history": conversation.conversation}
+                {"question": question, "chat_history": history}
             ):
                 data_to_send = {"type": "stream", "data": chunk}
                 yield f"{json.dumps(data_to_send)}\n\n"
