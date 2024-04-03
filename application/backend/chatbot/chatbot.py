@@ -234,7 +234,8 @@ class Chatbot:
             
             
             for i, res in enumerate(docs_from_vdb):
-                context += f"Document Index: {i+1}, {res.text.replace("\n", " ")}, {res.subtopic} \n"
+                replaced_text = res.text.replace('\n', ' ')
+                context += f"Document Index: {i+1}, {replaced_text}, {res.subtopic} \n"
                 look_up_table[i+1] = {"title": res.title, "url": res.url}
 
             print(f"look_up_table: {look_up_table}")
