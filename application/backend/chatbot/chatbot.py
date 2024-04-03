@@ -189,12 +189,10 @@ class Chatbot:
 
         if first_filter_result and first_filter_result.get("decision") == "stop":
             print("First filter applied, stopping here.")
-            self.postgres_history.add_user_message(question)
-            self.postgres_history.add_ai_message(
-                first_filter_result.get("answer", "Stopped at first filter")
-            )
-
             answer = first_filter_result.get("answer", "Stopped at first filter")
+            
+            self.postgres_history.add_user_message(question)
+            self.postgres_history.add_ai_message(answer)
 
             final_data = {
                 "type": "final",
@@ -205,7 +203,15 @@ class Chatbot:
                 },
             }
 
+            chunk_size = 5
+            chunks = answer.split(" ")
+
+            for i in range(0, len(chunks), chunk_size):
+                data_to_send = {"type": "stream", "data": " ".join(chunks[i : i + chunk_size])}
+                yield f"{json.dumps(data_to_send)}\n\n"
+
             yield f"{json.dumps(final_data)}\n\n"
+
         else:
             language_of_query = first_filter_result.get("language", "English")
             degree_program = map_study_program(study_program)

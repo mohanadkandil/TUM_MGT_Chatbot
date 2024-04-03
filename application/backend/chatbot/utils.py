@@ -40,20 +40,11 @@ def parse_and_filter_question(
 
     if not parsed_response.get("is_tum", True):
         print("Not TUM related")
-        answer = "I'm sorry, I can't answer that question. Please ask me about TUM School of Management."
-        prompt = ChatPromptTemplate.from_template(
-            """You are specialized chatbot at the TUM School of Management providing the students relevant answers to their study related questions. A function was triggered that symbolized that the question was not related to any 
-                                                  Study specific questions. 
-                                                  Please provide the user an understandable answer to the question and ask the user to ask a question related to the TUM School of Management.
-                                                  The following question was asked: {question}
-                                                  Answer it in the language of the question. So it should probably be in English or German."""
-        )
 
-        chain = prompt | llm | StrOutputParser()
-
-        answer = chain.invoke({"question": question})
+        answer = "I'm sorry, I can't answer that question. Please reformulate your question or ask me something different about the TUM School of Management."
 
         return {"answer": answer, "decision": "stop"}
+    
     elif parsed_response.get("is_sensitive", False):
         print("Sensitive data")
         answer = "I'm sorry, I can't answer that question. Make sure to not include any sensitive data in your inquiry or contact the SOM directly."
