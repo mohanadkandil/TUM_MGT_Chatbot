@@ -35,7 +35,7 @@ def parse_and_filter_question(
     """
     json_parser = JsonOutputParser()
     filter_prompt = FIRST_FILTER_PROMPT.format(history=history, question=question)
-    response = llm.invoke(filter_prompt)
+    response = llm.invoke(filter_prompt, response_format={"type": "json_object"})
     parsed_response = json_parser.parse(response.content)
 
     if not parsed_response.get("is_tum", True):
