@@ -76,7 +76,7 @@ export function SidebarItem({ index, chat }: SidebarItemProps) {
         )}
       >
         <div
-          className="relative max-h-5 flex-1 select-none overflow-hidden text-ellipsis break-all mb-5"
+          className="relative max-h-5 flex-1 select-none overflow-hidden text-ellipsis break-all mb-2"
           title={chat.title}
         >
           <span className="whitespace-nowrap">

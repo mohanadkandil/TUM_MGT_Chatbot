@@ -3,8 +3,9 @@ import os
 import weaviate
 from dotenv import find_dotenv, load_dotenv
 
-from application.backend.datastore.collections.main.collection import MainDataCollection
-from application.backend.datastore.collections.user_question.collection import UserQuestionCollection
+import application.backend.datastore.collections.main.schema as main_schema
+from application.backend.datastore.collections.main.main_data import MainDataCollection
+from application.backend.datastore.collections.user_question.user_questions import UserQuestionCollection
 
 load_dotenv(find_dotenv())
 
@@ -35,7 +36,10 @@ class ChatbotVectorDatabase:
             auth_credentials=weaviate.auth.AuthApiKey(weaviate_api_key),
             headers={"X-Azure-Api-Key": azure_openai_api_key},
         )
-        self.main = MainDataCollection(self.client)
+
+        self.main = MainDataCollection(main_schema.create_collection_if_not_exists(self.client, "ChatbotData"))
+        self.main_500 = MainDataCollection(main_schema.create_collection_if_not_exists(self.client, "ChatbotData500"))
+        self.main_250 = MainDataCollection(main_schema.create_collection_if_not_exists(self.client, "ChatbotData250"))
         self.questions = UserQuestionCollection(self.client)
 
     def __del__(self):

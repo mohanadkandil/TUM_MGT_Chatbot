@@ -12,3 +12,5 @@ unstructured[pdf,pptx,docx]==0.10.19
 o365==2.0.33
 psycopg-binary==3.1.18
 openai==1.13.3
+psycopg[binary,pool]
+sse-starlette==2.0.0
