@@ -45,10 +45,3 @@ class ChatbotVectorDatabase:
     def __del__(self):
         # Close the connection to Weaviate when the object is deleted
         self.client.close()
-
-
-if __name__ == "__main__":
-    db = ChatbotVectorDatabase()
-    db.questions.keep_only_since(0)
-    # db.questions.add_question("Foxes enjoy jumping over dogs")
-    print([f"{q.content}: {q.hit_times}" for q in db.questions.get_all_questions()])
