@@ -38,8 +38,6 @@ class ChatbotVectorDatabase:
         )
 
         self.main = MainDataCollection(main_schema.create_collection_if_not_exists(self.client, "ChatbotData"))
-        self.main_500 = MainDataCollection(main_schema.create_collection_if_not_exists(self.client, "ChatbotData500"))
-        self.main_250 = MainDataCollection(main_schema.create_collection_if_not_exists(self.client, "ChatbotData250"))
         self.questions = UserQuestionCollection(self.client)
 
     def __del__(self):

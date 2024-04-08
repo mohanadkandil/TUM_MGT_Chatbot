@@ -1,15 +1,15 @@
-from langchain_openai import AzureChatOpenAI
+import os
+import random
+from typing import List
+
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_openai import AzureChatOpenAI
+
 from application.backend.chatbot.prompts import (
     FIRST_FILTER_PROMPT,
     FEEDBACK_TRIGGER_PROMPT,
 )
 from application.backend.datastore.qa_pairs.qa_loader import PostgresLoader
-from typing import List
-import random, os
-from langchain_core.prompts import ChatPromptTemplate
-from langchain.schema import StrOutputParser, Document, format_document
-
 
 openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
 azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
@@ -38,16 +38,16 @@ def parse_and_filter_question(
     response = llm.invoke(filter_prompt, response_format={"type": "json_object"})
     parsed_response = json_parser.parse(response.content)
 
-    if not parsed_response.get("is_tum", True):
+    if not parsed_response.get("is_tum", False):
         print("Not TUM related")
 
         answer = "I'm sorry, I can't answer that question. Please reformulate your question or ask me something different about the TUM School of Management."
 
         return {"answer": answer, "decision": "stop"}
-    
-    elif parsed_response.get("is_sensitive", False):
+
+    elif parsed_response.get("is_sensitive", True):
         print("Sensitive data")
-        answer = "I'm sorry, I can't answer that question. Make sure to not include any sensitive data in your inquiry or contact the SOM directly."
+        answer = "I'm sorry, I can't answer that question. Make sure not to include any sensitive data in your inquiry or contact the SOM directly."
         return {"answer": answer, "decision": "stop"}
 
     language = parsed_response.get("language", "English")

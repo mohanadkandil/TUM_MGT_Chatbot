@@ -6,9 +6,9 @@ from O365 import Account
 from O365.drive import Folder, File
 from dotenv import load_dotenv
 
-from application.backend.datastore.db import ChatbotVectorDatabase
 from application.backend.datastore.collections.main.main_data import elapsed
 from application.backend.datastore.collections.main.sharepoint_document import SharepointDocument
+from application.backend.datastore.db import ChatbotVectorDatabase
 
 load_dotenv()
 
@@ -33,6 +33,19 @@ def load_file_structure(folder: Folder, path: str) -> dict[str, File]:
         elif item.is_file:
             files[item_path] = item
     return files
+
+
+def clear_download_dir():
+    """
+    Deletes the temporary directory used for downloading files from SharePoint.
+    """
+    print("Clearing download directory...")
+    # Recursively delete all children of the download directory
+    for root, dirs, files in os.walk(TEMP_DIR, topdown=False):
+        for name in files:
+            os.remove(os.path.join(root, name))
+        for name in dirs:
+            os.rmdir(os.path.join(root, name))
 
 
 def load_from_sharepoint() -> list[SharepointDocument]:
@@ -124,6 +137,7 @@ def load_from_sharepoint() -> list[SharepointDocument]:
 
 
 if __name__ == "__main__":
+    # clear_download_dir()
     db = ChatbotVectorDatabase()
     documents = load_from_sharepoint()
     db.main.synchronize(documents)

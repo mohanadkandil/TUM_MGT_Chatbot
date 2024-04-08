@@ -78,70 +78,6 @@ class MainDataCollection:
         )
         print(f"Removed {result.successful} chunks with hash '{hash}', {result.failed} failed.")
 
-    def ingest(self, documents: list[SharepointDocument] | set[SharepointDocument]):
-        """
-        Ingest the given documents into Weaviate.
-        :param documents: The documents to ingest
-        """
-        print(f"Uploading new documents to vector database...")
-        successes = 0
-        fails = 0
-        for i, document in enumerate(documents):
-            progress = f"{i + 1}/{len(documents)}"
-            print(f"({progress}) Chunking document '{document.file_path}'...", end="\r")
-            # Try to chunk the document
-            # If this fails then there is a bug with a chunking library, stacktrace will be printed
-            try:
-                chunking = time.time()
-                chunks = document.chunk()
-                print(f"({progress}) Chunked document '{document.file_path}' into {len(chunks)} chunks "
-                      f"(took {elapsed(chunking)}).")
-            except Exception:
-                print(f"({progress}) Failed to chunk document '{document.file_path}'")
-                traceback.print_exc()
-                document.update_sync_status(False)  # Make sure SharePoint shows that this document failed
-                fails += 1
-                continue
-
-            # Try to upload the chunks
-            try:
-                self.import_chunks(chunks)
-                document.update_sync_status(True)
-                successes += 1
-            except Exception as e:
-                print(f"Error while uploading chunks of {document.file_path}: {e}")
-                document.update_sync_status(False)
-                fails += 1
-        print(f"Of the {len(documents)} documents to upload, {successes} succeeded and {fails} failed.")
-
-    def import_chunks(self, chunks: list[Chunk]):
-        """
-        Import the given chunks into Weaviate.
-        :param chunks: The chunks to import
-        """
-        len_chunks = len(chunks)
-        print(f"Uploading chunks... (0/{len_chunks})", end="\r")
-        upload_start = time.time()
-        remaining_objects = [chunk.as_properties() for chunk in chunks]
-        attempts = 1
-        remaining_objects = self.upload_objects(remaining_objects)  # Try to upload all chunks
-        while remaining_objects:  # Retry failed chunks after a 10-second wait (Azure rate limit)
-            print(f"Uploading chunks... ({len_chunks - len(remaining_objects)}/{len_chunks}) (attempts: {attempts})", end="\r")
-            time.sleep(10)
-            attempts += 1
-            remaining_objects = self.upload_objects(remaining_objects)
-        if remaining_objects:
-            raise Exception(f"Failed to embed {len(remaining_objects)} chunks.")
-        print(f"Uploaded {len_chunks} chunks in {attempts} batches (took {elapsed(upload_start)}).")
-
-    def upload_objects(self, objects: list[dict]):
-        with self.collection.batch.dynamic() as batch:
-            for object_to_upload in objects:
-                batch.add_object(properties=object_to_upload)
-        if batch.number_errors > 0:
-            return [failed.object_.properties for failed in batch._BatchBase__results_for_wrapper.failed_objects]
-        return []
-
     def synchronize(self, source_of_truth: list[SharepointDocument]):
         """
         Synchronize the database with the provided LocalDocuments as the source of truth.
@@ -186,6 +122,70 @@ class MainDataCollection:
         for existing_doc in [truth_docs_by_hash[hash] for hash in hashes_to_keep_in_db]:
             existing_doc.update_sync_status(True)
         print(f"Synchronized vector database with source of truth in {elapsed(start)}.")
+
+    def ingest(self, documents: list[SharepointDocument] | set[SharepointDocument]):
+        """
+        Ingest the given documents into Weaviate.
+        :param documents: The documents to ingest
+        """
+        print(f"Uploading new documents to vector database...")
+        successes = 0
+        fails = 0
+        for i, document in enumerate(documents):
+            progress = f"{i + 1}/{len(documents)}"
+            print(f"({progress}) Chunking document '{document.file_path}'...", end="\r")
+            # Try to chunk the document
+            # If this fails then there is a bug with a chunking library, stacktrace will be printed
+            try:
+                chunking = time.time()
+                chunks = document.chunk()
+                print(f"({progress}) Chunked document '{document.file_path}' into {len(chunks)} chunks "
+                      f"(took {elapsed(chunking)}).")
+            except Exception:
+                print(f"({progress}) Failed to chunk document '{document.file_path}'")
+                traceback.print_exc()
+                document.update_sync_status(False)  # Make sure SharePoint shows that this document failed
+                fails += 1
+                continue
+
+            # Try to upload the chunks
+            try:
+                self.import_chunks(chunks)
+                document.update_sync_status(True)
+                successes += 1
+            except Exception as e:
+                print(f"Error while uploading chunks of {document.file_path}: {e}")
+                document.update_sync_status(False)
+                fails += 1
+        print(f"Of the {len(documents)} documents to upload, {successes} succeeded and {fails} failed.")
+
+    def import_chunks(self, chunks: list[Chunk]):
+        """
+        Import the given chunks into Weaviate.
+        :param chunks: The chunks to import
+        """
+        len_chunks = len(chunks)
+        print(f"Uploading chunks... (0/{len_chunks})", end="\r")
+        uploading = time.time()
+        remaining_objects = [chunk.as_properties() for chunk in chunks]
+        attempts = 1
+        remaining_objects = self.upload_objects(remaining_objects)  # Try to upload all chunks
+        while remaining_objects:  # Retry failed chunks after a 10-second wait (Azure rate limit)
+            print(f"Uploading chunks... ({len_chunks - len(remaining_objects)}/{len_chunks}) (attempts: {attempts})", end="\r")
+            time.sleep(10)
+            attempts += 1
+            remaining_objects = self.upload_objects(remaining_objects)
+        if remaining_objects:
+            raise Exception(f"Failed to embed {len(remaining_objects)} chunks.")
+        print(f"Uploaded {len_chunks} chunks in {attempts} batches (took {elapsed(uploading)}).")
+
+    def upload_objects(self, objects: list[dict]):
+        with self.collection.batch.dynamic() as batch:
+            for object_to_upload in objects:
+                batch.add_object(properties=object_to_upload)
+        if batch.number_errors > 0:
+            return [failed.object_.properties for failed in batch._BatchBase__results_for_wrapper.failed_objects]
+        return []
 
     def search(
         self,
