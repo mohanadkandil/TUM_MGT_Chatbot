@@ -26,7 +26,7 @@ class Question:
             uuid=None,
     ):
         self.content = content
-        self.hits = hit_times if hit_times is not None else []
+        self.hit_times = hit_times if hit_times is not None else []
         self.uuid = uuid
 
     def as_properties(self) -> dict[str, Any]:
