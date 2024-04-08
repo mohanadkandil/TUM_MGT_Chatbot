@@ -4,6 +4,7 @@ import weaviate
 from dotenv import find_dotenv, load_dotenv
 
 import application.backend.datastore.collections.main.schema as main_schema
+import application.backend.datastore.collections.user_question.schema as question_schema
 from application.backend.datastore.collections.main.main_data import MainDataCollection
 from application.backend.datastore.collections.user_question.user_questions import UserQuestionCollection
 
@@ -38,7 +39,8 @@ class ChatbotVectorDatabase:
         )
 
         self.main = MainDataCollection(main_schema.create_collection_if_not_exists(self.client, "ChatbotData"))
-        self.questions = UserQuestionCollection(self.client)
+        self.questions = UserQuestionCollection(
+            question_schema.create_collection_if_not_exists(self.client, "UserQuestion"))
 
     def __del__(self):
         # Close the connection to Weaviate when the object is deleted

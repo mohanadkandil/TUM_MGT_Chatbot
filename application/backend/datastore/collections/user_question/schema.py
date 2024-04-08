@@ -5,8 +5,6 @@ import weaviate.classes as wvc
 from weaviate import WeaviateClient
 from weaviate.collections import Collection
 
-COLLECTION_NAME = "UserQuestion"
-
 
 class Question:
     """
@@ -42,15 +40,15 @@ class Question:
         }
 
 
-def recreate_schema(client: WeaviateClient) -> Collection:
-    if client.collections.exists(COLLECTION_NAME):
-        client.collections.delete(COLLECTION_NAME)
-    return init_schema(client)
+def recreate_schema(client: WeaviateClient, collection_name: str) -> Collection:
+    if client.collections.exists(collection_name):
+        client.collections.delete(collection_name)
+    return create_collection_if_not_exists(client, collection_name)
 
 
-def init_schema(client: WeaviateClient) -> Collection:
-    if client.collections.exists(COLLECTION_NAME):
-        return client.collections.get(COLLECTION_NAME)
+def create_collection_if_not_exists(client: WeaviateClient, collection_name: str) -> Collection:
+    if client.collections.exists(collection_name):
+        return client.collections.get(collection_name)
 
     resource_name = os.getenv("AZURE_OPENAI_RESOURCE_NAME")
     deployment_id = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
@@ -60,7 +58,7 @@ def init_schema(client: WeaviateClient) -> Collection:
     assert base_url, "AZURE_OPENAI_ENDPOINT environment variable must be set"
 
     return client.collections.create(
-        name=COLLECTION_NAME,
+        name=collection_name,
         # By specifying a vectorizer, weaviate will automatically vectorize the text content of the chunks
         vectorizer_config=wvc.config.Configure.Vectorizer.text2vec_azure_openai(
             resource_name=resource_name,
