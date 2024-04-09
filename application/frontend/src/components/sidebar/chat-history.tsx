@@ -14,7 +14,7 @@ export async function ChatHistory() {
       <div className="my-4 px-3">
         <IconTUMLogo />
         <Link
-          href="/"
+          href="/chat"
           className={cn(
             buttonVariants({ variant: "outline" }),
             "rounded-full h-10 justify-start px-4 mt-9 mb-6 shadow-none transition-colors bg-button-gradient"

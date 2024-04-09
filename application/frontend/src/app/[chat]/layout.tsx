@@ -1,10 +1,12 @@
 import { SidebarDesktop } from "@/components/sidebar/sidebar-desktop";
+import { loginIsRequiredServer } from "@/lib/auth";
 
 interface ChatLayoutProps {
   children: React.ReactNode;
 }
 
 export default async function ChatLayout({ children }: ChatLayoutProps) {
+  await loginIsRequiredServer();
   return (
     <div className="relative flex h-[calc(100vh_-_theme(spacing.0))] overflow-hidden">
       <SidebarDesktop />

@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { signOut } from "next-auth/react";
 
 export function SettingsTabs() {
   return (
@@ -78,6 +79,9 @@ export function SettingsTabs() {
                 </Select>
               </CardContent>
             </Card>
+            <Button size="sm" onClick={() => signOut()}>
+              Sign-out
+            </Button>
           </TabsContent>
           <TabsContent value="password" className="space-y-4">
             <Card className="">
