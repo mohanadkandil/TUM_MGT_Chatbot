@@ -5,12 +5,12 @@ import { redirect, useRouter } from "next/navigation";
 // Custom OIDC provider for TUM
 const TUMProvider = [
   {
-    id: process.env.TUMIDP_ID as string,
-    issuer: process.env.TUMIDP_ISSUER as string,
+    id: process.env.NEXT_PUBLIC_TUMIDP_ID as string,
+    issuer: process.env.NEXT_PUBLIC_TUMIDP_ISSUER as string,
     name: "TUMCHAT",
     type: "oauth",
-    wellKnown: process.env.TUMIDP_WELLKNOWN as string,
-    clientId: process.env.TUMIDP_CLIENT_ID as string,
+    wellKnown: process.env.NEXT_PUBLIC_TUMIDP_WELLKNOWN as string,
+    clientId: process.env.NEXT_PUBLIC_TUMIDP_CLIENT_ID as string,
     clientSecret: process.env.TUMIDP_CLIENT_SECRET as string,
     authorization: { 
       params: { scope: "openid profile" },
@@ -35,7 +35,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.access_token) {
         token.accessToken = account.access_token;
         // Manually fetching user profile -
-        const res = await fetch(process.env.TUMIDP_USERINFO as string, {
+        const res = await fetch(process.env.NEXT_PUBLIC_TUMIDP_USERINFO as string, {
           headers: {
             Authorization: `Bearer ${account.access_token}`,
           },
