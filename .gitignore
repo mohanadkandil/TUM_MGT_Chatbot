@@ -7,3 +7,4 @@ myapp
 /application/.env.example
 .env
 venv/
+/sharepoint_temp/*
