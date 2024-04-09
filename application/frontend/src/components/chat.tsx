@@ -157,7 +157,6 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
   }, [selectedQuestion, setInput, setSelectedQuestion]);
 
   useEffect(() => {
-    console.log(selectedMajor);
     if (selectedMajor !== "None") {
       setMajor(selectedMajor);
     } else {

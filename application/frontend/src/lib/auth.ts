@@ -18,7 +18,6 @@ const TUMProvider = [
     idToken: true,
     checks: ["pkce", "state"],
     profile(profile: any) {
-      console.log("profile: ", profile)
       return {
         id: profile.sub,
         name: profile.name ?? profile.preferred_username,
@@ -34,9 +33,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, account }) {
       if (account?.access_token) {
-        console.log("Access Token (JWT Callback):", account.access_token);
         token.accessToken = account.access_token;
-    
         // Manually fetching user profile -
         const res = await fetch(process.env.TUMIDP_USERINFO as string, {
           headers: {
@@ -44,9 +41,7 @@ export const authOptions: NextAuthOptions = {
           },
         });
     
-        const profile = await res.json();
-        console.log("Fetched profile:", profile);
-    
+        const profile = await res.json();    
         // Now map the profile information
         token.preferred_username = profile.preferred_username
         token.given_name = profile.given_name ?? profile.preferred_username;
