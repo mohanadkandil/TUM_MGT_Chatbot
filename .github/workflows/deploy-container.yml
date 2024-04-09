@@ -1,12 +1,11 @@
 name: test-and-deploy
 
-
 on:
   push:
 
 jobs:
   test:
-    runs-on: ubuntu:latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Setup Python
@@ -18,6 +17,4 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
       - name: Test with pytest
-        run: python -m application.backend.api.test_api
-  
-  
+        run: python -m test_api ./application.backend.api
