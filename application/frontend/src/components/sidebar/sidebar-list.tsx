@@ -4,9 +4,11 @@ import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { SidebarItems } from "./sidebar-items";
 import { Chat } from "@/lib/types";
 import { SettingsDialog } from "../settings-dialog";
+import { useSession } from "next-auth/react";
 
 export async function SidebarList() {
   const [chats, _] = useLocalStorage<Record<string, Chat>>("chats", {});
+  const { data: session } = useSession();
 
   // Convert chats object into an array of chat objects
   const chatsArray = Object.keys(chats).map((key) => ({
@@ -39,7 +41,7 @@ export async function SidebarList() {
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-full bg-slate-300" />
-            <span className="text-sm font-medium">TUM User</span>
+            <span className="text-sm font-medium">{session?.user?.id}</span>
           </div>
           <SettingsDialog />
         </div>

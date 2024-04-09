@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 import "./globals.css";
-import { Header } from "@/components/header";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
+import SessionProvider from "../components/session-provider";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -19,23 +19,22 @@ export const viewport = {
 interface RootLayoutProps {
   children: React.ReactNode;
 }
-export default function RootLayout({ children }: RootLayoutProps) {
+
+export default async function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body className={cn("font-sans antialiased")}>
-        <Toaster />
-        <Providers
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex flex-col flex-1">{children}</main>
-          </div>
-          {/* <TailwindIndicator /> */}
-        </Providers>
+        <SessionProvider>
+          <Toaster />
+          <Providers
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+          </Providers>
+        </SessionProvider>
       </body>
     </html>
   );

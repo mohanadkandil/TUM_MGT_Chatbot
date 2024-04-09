@@ -25,6 +25,7 @@ import { useStreamResponse } from "@/lib/hooks/use-stream-response";
 import { useSelectedQuestionStore } from "@/lib/stores/useSelectedQuestionStore";
 import MajorsFilter from "./majors-filter";
 import { useSelectedMajorStore } from "@/lib/stores/useSelectedMajorStore";
+import { useSession } from "next-auth/react";
 
 export interface ChatProps extends React.ComponentProps<"div"> {
   initialMessages?: Message[];
@@ -60,6 +61,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
   const [major, setMajor] = useState("");
   const { selectedQuestion, setSelectedQuestion } = useSelectedQuestionStore();
   const { selectedMajor, setSelectedMajor } = useSelectedMajorStore();
+  const { data: session } = useSession();
 
   const addOrUpdateMessageInChats = (
     messageToUpdate: Message,
@@ -178,7 +180,7 @@ export function Chat({ id, initialMessages = [] }: ChatProps) {
           <>
             <div className="mx-auto max-w-5xl pb-12 px-12 md:px-8">
               <h1 className="custom-text-gradient font-extrabold text-[40px]">
-                Hello Penny
+                Hello {session?.user?.name}
               </h1>
               <p className="text-[#C1C1C1] text-[40px] font-semibold">
                 Any school-related questions? Just ask.
